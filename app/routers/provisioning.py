@@ -98,6 +98,13 @@ async def get_config(identifier: str, request: Request, db: Session = Depends(ge
                 raise HTTPException(status_code=404, detail="Unknown MAC")
         
         _touch_phone(db, phone, request)
+
+        if not phone.model_name or phone.model_name == "Unknown":
+            m = re.search(r"SIP-([A-Za-z0-9\-]+)", request.headers.get("user-agent", ""))
+            if m:
+                phone.model_name = m.group(1).upper()
+                db.commit()
+                logger.info("Detected model %s for %s from User-Agent", phone.model_name, phone.mac)
         
         try:
             config_data = build_phone_config(db, mac)

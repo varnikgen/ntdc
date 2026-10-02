@@ -389,36 +389,24 @@ async def auto_enroll_status():
         AUTO_ENROLL_UNTIL = None  # Сброс если время вышло
         return {"enabled": False}
 
-@router.post("/scan-network")
-async def scan_network(request: Request, db: Session = Depends(get_db)):
-    """Запускает сканирование сети для поиска и автодобавления телефонов Yealink."""
-    from app.services.network_scanner import scan_subnet
-    from app.services.audit import admin_user
-    
-    try:
-        body = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
-        
-    subnet = body.get("subnet")
-    username = body.get("username", "admin")
-    password = body.get("password", "admin")
-    
-    if not subnet:
-        raise HTTPException(status_code=400, detail="Parameter 'subnet' is required")
-        
-    try:
-        result = await scan_subnet(subnet, username, password, db, admin_user(request))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-        
-    log_action(
-        db, "NETWORK_SCAN", "Settings", 0, admin_user(request),
-        f"Scanned {subnet}: found {result['found_yealink']} phones"
-    )
-    
-    return {
-        "status": "success",
-        "message": f"Сканирование завершено. Найдено: {result['found_yealink']}, Добавлено: {result['newly_enrolled']}",
-        **result
-    }
+@router.post("/import-configs")
+async def import_configs(request: Request, db: Session = Depends(get_db)):
+    """Пакетная загрузка экспортированных cfg-файлов Yealink."""
+    from app.services.cfg_import import import_cfg_file
+    from app.services.audit import log_action, admin_user
+
+    form = await request.form()
+    uploads = form.getlist("files")
+    if not uploads:
+        raise HTTPException(status_code=400, detail="Файлы не загружены")
+
+    report = []
+    for up in uploads:
+        data = await up.read()
+        text = data.decode("utf-8", errors="replace")
+        report.append(import_cfg_file(db, up.filename or "unknown.cfg", text))
+
+    ok = sum(1 for r in report if r["ok"])
+    log_action(db, "IMPORT_CONFIGS", "Settings", 0, admin_user(request),
+               f"Imported {ok}/{len(report)} config files")
+    return {"status": "success", "imported": ok, "total": len(report), "report": report}

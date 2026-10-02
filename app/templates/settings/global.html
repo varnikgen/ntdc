@@ -129,37 +129,19 @@
     </div>
 </div>
 
-<div class="card mt-4 border-primary">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">🔍 Массовое сканирование сети (Approach 2)</h5>
+<div class="card mt-4 border-success">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">📥 Импорт конфигов Yealink (файлы *-all.cfg)</h5>
     </div>
     <div class="card-body">
-        <p class="text-muted">Сервер просканирует указанный диапазон IP, найдет телефоны Yealink и автоматически добавит их MAC-адреса в базу данных.</p>
-        
-        <form id="scanForm" class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label">IP Подсеть (CIDR)</label>
-                <input type="text" class="form-control" name="subnet" placeholder="10.30.17.0/24" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Логин телефона</label>
-                <input type="text" class="form-control" name="username" value="admin" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Пароль телефона</label>
-                <input type="password" class="form-control" name="password" value="admin" required>
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100" id="scanBtn">
-                    <span id="scanSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
-                    Сканировать
-                </button>
-            </div>
+        <p class="text-muted">Загрузите файлы, экспортированные скриптом <code>yealink_bulk_export.py</code>.
+           Сервис извлечёт MAC из имени файла, уберёт совпадающее с глобальными настройками
+           и сохранит остальное как персональную конфигурацию телефона.</p>
+        <form id="importForm">
+            <input type="file" name="files" class="form-control" multiple accept=".cfg">
+            <button type="submit" class="btn btn-success mt-2" id="importBtn">Импортировать</button>
         </form>
-
-        <div id="scanResult" class="mt-4 d-none">
-            <!-- Результаты будут вставлены сюда через JS -->
-        </div>
+        <div id="importResult" class="mt-3"></div>
     </div>
 </div>
 {% endblock %}
@@ -317,6 +299,38 @@ document.getElementById('scanForm').addEventListener('submit', async function(e)
     } finally {
         btn.disabled = false;
         spinner.classList.add('d-none');
+    }
+});
+
+document.getElementById('importForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('importBtn');
+    const res = document.getElementById('importResult');
+    btn.disabled = true;
+    res.innerHTML = '<div class="alert alert-info">Импорт...</div>';
+
+    const fd = new FormData(this);
+    try {
+        const response = await fetch('/settings/import-configs', { method: 'POST', body: fd });
+        const data = await response.json();
+        if (response.ok) {
+            let rows = data.report.map(r =>
+                `<tr class="${r.ok ? '' : 'table-danger'}">
+                   <td>${r.file}</td><td><code>${r.mac || '—'}</code></td>
+                   <td>${r.ok ? (r.created ? 'создан' : 'обновлён') : r.error}</td>
+                   <td>${r.custom_keys ?? ''}</td><td>${r.dss_keys ?? ''}</td>
+                 </tr>`).join('');
+            res.innerHTML = `<div class="alert alert-success">Импортировано ${data.imported} из ${data.total}</div>
+                <table class="table table-sm table-bordered">
+                <thead><tr><th>Файл</th><th>MAC</th><th>Результат</th><th>Ключей</th><th>DSS</th></tr></thead>
+                <tbody>${rows}</tbody></table>`;
+        } else {
+            res.innerHTML = `<div class="alert alert-danger">Ошибка: ${data.detail}</div>`;
+        }
+    } catch (err) {
+        res.innerHTML = `<div class="alert alert-danger">Ошибка сети: ${err.message}</div>`;
+    } finally {
+        btn.disabled = false;
     }
 });
 </script>
