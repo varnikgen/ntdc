@@ -102,7 +102,33 @@
         <div class="card-header"><i class="bi bi-code-square"></i> Default Model Configuration (JSON)</div>
         <div class="card-body">
             <div class="form-text mb-2">These keys are written into the model cfg ($PN.cfg) for every phone of this model.</div>
-            <textarea name="default_config" class="form-control font-monospace" rows="8" placeholder='{ "phone_setting.interrupted_ring_tone.enable": 1 }'>{{ default_config_json }}</textarea>
+            <div class="card mb-4">
+                <div class="card-header"><i class="bi bi-sliders"></i> Model Configuration (Key-Value)</div>
+                <div class="card-body">
+                    <div id="modelConfigContainer">
+                        {% for key, value in (model.default_config if model and model.default_config else {}).items() %}
+                        <div class="row mb-2 cfg-row">
+                            <div class="col-md-5">
+                                <input type="text" class="form-control cfg-key" value="{{ key }}" placeholder="parameter.name">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" class="form-control cfg-val" value="{{ value }}" placeholder="Value">
+                            </div>
+                            <div class="col-md-1 text-end">
+                                <button type="button" class="btn btn-outline-danger btn-sm"
+                                        onclick="this.closest('.cfg-row').remove()">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addModelCfgRow()">
+                        + Add Model Setting
+                    </button>
+                    <input type="hidden" name="default_config" id="defaultConfigJson">
+                </div>
+            </div>
         </div>
     </div>
 
@@ -147,6 +173,35 @@ document.getElementById('modelForm').addEventListener('submit', async function(e
     } catch (error) {
         alert('Network error: ' + error.message);
     }
+});
+
+function addModelCfgRow() {
+    const wrap = document.getElementById('modelConfigContainer');
+    const div = document.createElement('div');
+    div.className = 'row mb-2 cfg-row';
+    div.innerHTML = `
+        <div class="col-md-5"><input type="text" class="form-control cfg-key" placeholder="parameter.name"></div>
+        <div class="col-md-6"><input type="text" class="form-control cfg-val" placeholder="Value"></div>
+        <div class="col-md-1 text-end">
+            <button type="button" class="btn btn-outline-danger btn-sm"
+                    onclick="this.closest('.cfg-row').remove()"><i class="bi bi-trash"></i></button>
+        </div>`;
+    wrap.appendChild(div);
+}
+
+// Перед отправкой формы сериализуем строки в JSON (числа — как числа)
+document.addEventListener('submit', function (e) {
+    const hidden = document.getElementById('defaultConfigJson');
+    if (!hidden || !e.target.contains(hidden)) return;
+
+    const cfg = {};
+    document.querySelectorAll('#modelConfigContainer .cfg-row').forEach(row => {
+        const key = row.querySelector('.cfg-key')?.value?.trim();
+        const val = row.querySelector('.cfg-val')?.value ?? '';
+        if (!key) return;
+        cfg[key] = /^\d+$/.test(val) ? parseInt(val, 10) : val;
+    });
+    hidden.value = JSON.stringify(cfg);
 });
 
 {% if model %}
