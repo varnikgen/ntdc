@@ -1,4 +1,10 @@
-from app.security import extract_mac, normalize_mac, quote_cfg, constant_time_equals
+from app.security import (
+    extract_mac,
+    normalize_mac,
+    quote_cfg,
+    constant_time_equals,
+    detect_model_from_ua,
+)
 from app.phone_ip import pick_phone_ip, is_phone_ip, is_container_ip
 
 
@@ -41,3 +47,14 @@ def test_pick_phone_ip_ignores_podman_nat():
     assert pick_phone_ip(None, "10.30.17.68", None) is None  # TCP-источник не доверяем
     assert pick_phone_ip(None, "10.89.0.3", "10.89.0.3") is None
     assert pick_phone_ip("$ip", "10.89.0.3", None) is None
+
+
+def test_detect_model_from_ua():
+    assert detect_model_from_ua("Yealink SIP-T46U 108.87.14.1 24:9a:d8:6e:9d:88") == "T46U"
+    assert detect_model_from_ua("Yealink SIP-T54W 96.86.0.74") == "T54W"
+    assert detect_model_from_ua("Yealink SIP-T48U 108.86.0.20") == "T48U"
+    assert detect_model_from_ua("Yealink W70B 146.85.0.5") == "W70B"
+    assert detect_model_from_ua("Yealink VP-T49G 51.80.0.100") in {"T49G", "VP-T49G"}
+    assert detect_model_from_ua("Mozilla/5.0") is None
+    assert detect_model_from_ua("") is None
+

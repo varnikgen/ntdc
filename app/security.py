@@ -50,6 +50,53 @@ def extract_mac(user_agent: str = "", query_mac: str = "") -> str | None:
     return None
 
 
+# Типичные Yealink User-Agent:
+#   "Yealink SIP-T46U 108.87.14.1 24:9a:d8:6e:9d:88"
+#   "Yealink SIP-T54W 96.86.0.74"
+#   "Yealink VP-T49G ..."
+#   "Yealink W70B ..."
+# Регекс берёт токен после SIP- / VP- / W и до пробела/конца.
+MODEL_FROM_UA_RE = re.compile(
+    r"(?:SIP|VP|W)[- ]?([A-Za-z0-9][A-Za-z0-9\-]{1,12})",
+    re.IGNORECASE,
+)
+
+# Известные популярные модели (для приоритета и нормализации регистра).
+# Можно расширять без правки логики.
+KNOWN_MODELS = frozenset({
+    "T19P", "T21P", "T23G", "T27G", "T29G",
+    "T30", "T31", "T31G", "T31P", "T33G", "T33P",
+    "T40G", "T40P", "T41S", "T42S", "T42U", "T43U", "T44U", "T46S", "T46U", "T48S", "T48U",
+    "T52S", "T53", "T53W", "T54S", "T54W", "T57W", "T58", "T58W", "T58A",
+    "T73W", "T74W", "T75W", "T77U", "T80", "T85W", "T87W", "T88V", "T88W",
+    "VP59", "VP-T49G", "CP920", "CP925", "CP960", "CP965",
+    "W70B", "W73B", "W73P", "W76B", "W78B", "W79P", "W80B", "W90B",
+    "WH62", "WH63", "WH66", "WH67",
+})
+
+
+def detect_model_from_ua(user_agent: str = "") -> str | None:
+    """Извлекает имя модели Yealink из User-Agent.
+
+    Возвращает UPPERCASE имя (как в $PN) или None.
+    Сначала ищет известные модели целиком, затем общий регекс.
+    """
+    if not user_agent:
+        return None
+    ua = user_agent.strip()
+    ua_upper = ua.upper()
+
+    # Приоритет известным моделям (длинные сначала, чтобы T46U не перебило T46)
+    for model in sorted(KNOWN_MODELS, key=len, reverse=True):
+        if model.upper() in ua_upper:
+            return model.upper()
+
+    m = MODEL_FROM_UA_RE.search(ua)
+    if m:
+        return m.group(1).upper()
+    return None
+
+
 def quote_cfg(value) -> str:
     """Значение для Yealink cfg: `ключ = всё_до_конца_строки`.
 

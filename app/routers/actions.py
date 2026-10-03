@@ -12,7 +12,7 @@ import logging
 from app.config import settings
 from app.database import get_db
 from app.models import Phone
-from app.security import extract_mac, constant_time_equals
+from app.security import extract_mac, constant_time_equals, detect_model_from_ua
 from app.phone_ip import pick_phone_ip, reported_phone_ip, request_src_ip
 from app.services.audit import log_action
 
@@ -46,9 +46,14 @@ async def handle_action_url(request: Request, db: Session = Depends(get_db)):
         if not settings.AUTO_ENROLL:
             logger.warning("Action URL for unknown MAC %s", mac)
             return {"status": "ignored", "reason": "Phone not found"}
-        phone = Phone(mac=mac, status="unregistered")
+        model_name = detect_model_from_ua(user_agent)
+        phone = Phone(mac=mac, status="unregistered", model_name=model_name)
         db.add(phone)
         created = True
+    elif not phone.model_name:
+        model_name = detect_model_from_ua(user_agent)
+        if model_name:
+            phone.model_name = model_name
 
     chosen = pick_phone_ip(reported_ip, None, phone.ip_address)
     phone.ip_address = chosen

@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     )
 
     APP_NAME: str = "NCDC"
-    APP_VERSION: str = "0.2.9"
+    APP_VERSION: str = "0.2.10"
     DEBUG: bool = False  # True включает SQL-echo — в лог попадут SIP-пароли
 
     DATABASE_URL: str = "sqlite:///./data/ncdc.db"

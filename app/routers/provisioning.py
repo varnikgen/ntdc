@@ -8,7 +8,6 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 import logging
-import re
 
 from app.config import settings
 from app.database import get_db
@@ -17,7 +16,7 @@ from app.models import Phone, PhoneModel, GlobalConfig
 from app.provision_templates import jinja_env
 from app.provision_url import boot_file_body
 from app.routers.settings import auto_enroll_active
-from app.security import MAC_RE, normalize_mac
+from app.security import MAC_RE, normalize_mac, detect_model_from_ua
 from app.phone_ip import pick_phone_ip, reported_phone_ip
 from app.services.config_builder import build_phone_config, build_model_config
 from app.services.audit import log_action
@@ -78,30 +77,29 @@ async def get_config(identifier: str, request: Request, db: Session = Depends(ge
             auto_enroll_enabled = settings.AUTO_ENROLL or auto_enroll_active()
             
             if auto_enroll_enabled:
-                # Определяем модель по User-Agent
                 user_agent = request.headers.get("user-agent", "")
-                model_name = _detect_model_from_ua(user_agent)
-                
-                # Создаем телефон с определенной моделью
+                model_name = detect_model_from_ua(user_agent)
                 phone = Phone(
-                    mac=mac, 
+                    mac=mac,
                     status="unregistered",
-                    model_name=model_name  # <-- Сразу назначаем модель
+                    model_name=model_name,
                 )
                 db.add(phone)
                 db.commit()
-                log_action(db, "AUTO_ENROLL", "Phone", phone.id, "provision", 
-                          f"Enrolled {mac} with model {model_name}")
+                log_action(
+                    db, "AUTO_ENROLL", "Phone", phone.id, "provision",
+                    f"Enrolled {mac} with model {model_name or 'unknown'}",
+                )
                 logger.info("Auto-enrolled phone %s with model %s", mac, model_name)
             else:
                 raise HTTPException(status_code=404, detail="Unknown MAC")
         
         _touch_phone(db, phone, request)
 
-        if not phone.model_name or phone.model_name == "Unknown":
-            m = re.search(r"SIP-([A-Za-z0-9\-]+)", request.headers.get("user-agent", ""))
-            if m:
-                phone.model_name = m.group(1).upper()
+        if not phone.model_name:
+            model_name = detect_model_from_ua(request.headers.get("user-agent", ""))
+            if model_name:
+                phone.model_name = model_name
                 db.commit()
                 logger.info("Detected model %s for %s from User-Agent", phone.model_name, phone.mac)
         
@@ -115,19 +113,3 @@ async def get_config(identifier: str, request: Request, db: Session = Depends(ge
     model_obj = db.query(PhoneModel).filter(PhoneModel.name == identifier.upper()).first()
     config = build_model_config(model_obj, identifier)
     return _render("model.cfg.j2", {"config": config})
-
-def _detect_model_from_ua(user_agent: str) -> str | None:
-    """Определяем модель телефона по User-Agent"""
-    ua_upper = user_agent.upper()
-    
-    if "T46U" in ua_upper:
-        return "T46U"
-    elif "T48U" in ua_upper:
-        return "T48U"
-    elif "T54W" in ua_upper:
-        return "T54W"
-    elif "T58" in ua_upper:
-        return "T58"
-    # ... добавьте другие модели ...
-    
-    return None  # Не удалось определить

@@ -1,16 +1,20 @@
 ## NCDC (Network Configuration & Device Control)
 
-Система автопровижининга IP-телефонов Yealink: веб-админка, иерархические cfg-файлы, HTTPS, 802.1x, DSS-клавиши, AutoP push и журнал аудита.
+Система автопровижининга и управления IP-телефонами **Yealink**.
 
-Версия **0.2.9**. Подробности — в [FIXES.md](FIXES.md).
+Веб-админка, иерархические cfg-файлы (global → model → device), HTTPS, 802.1x, DSS-клавиши, AutoP push, журнал аудита, auto-enroll по MAC.
+
+**Версия 0.2.10.** Подробности исправлений — в [FIXES.md](FIXES.md).
 
 ### Стек
 
-* Backend: Python 3.11, FastAPI, SQLAlchemy, Uvicorn
-* Frontend: Jinja2, HTMX, Bootstrap 5
-* БД: SQLite (WAL + foreign_keys)
-* Reverse proxy: Nginx
-* Контейнеры: Podman / Docker Compose
+| Компонент | Технология |
+|-----------|------------|
+| Backend | Python 3.11, FastAPI, SQLAlchemy, Uvicorn |
+| Frontend | Jinja2, HTMX, Bootstrap 5 |
+| БД | SQLite (WAL + foreign_keys) |
+| Proxy | Nginx |
+| Контейнеры | Podman / Docker Compose |
 
 ### Быстрый старт
 
@@ -19,7 +23,8 @@ git clone <your-repo-url>
 cd ncdc-qwen
 
 cp .env.example .env
-# Обязательно задайте NCDC_ADMIN_PASS, SECRET_KEY, PROVISION_PASS, ACTION_URI_TOKEN, PUBLIC_BASE_URL
+# Обязательно задайте:
+#   NCDC_ADMIN_PASS, SECRET_KEY, PROVISION_PASS, ACTION_URI_TOKEN, PUBLIC_BASE_URL
 
 mkdir -p data nginx/ssl
 chmod 0777 data   # или chown 1000:1000 data  (контейнер работает от uid 1000)
@@ -31,8 +36,11 @@ podman-compose up --build -d
 # или: docker compose up --build -d
 ```
 
-Если `pip install` внутри образа падает с `Network is unreachable` / `Errno 101` —
-у контейнера нет выхода на pypi.org (часто rootless Podman). Два варианта:
+Без заполненного `.env` приложение **не стартует** — специально, чтобы не поднять прод с дефолтными паролями.
+
+#### Проблемы с сетью при сборке (rootless Podman)
+
+Если `pip install` падает с `Network is unreachable` / `Errno 101`:
 
 **A. Сеть хоста на время сборки**
 
@@ -43,71 +51,42 @@ podman-compose up -d
 
 В `podman-compose.yml` для `build` уже стоит `network: host`.
 
-**B. Колёса с Windows (там pip у вас работает)**
-
-На ПК:
+**B. Офлайн-колёса (Windows → Linux)**
 
 ```powershell
 .\scripts\download-linux-wheels.ps1
 ```
 
-Скопируйте папку `vendor\py311-linux\` на сервер в тот же путь репозитория.
-Сборка больше не ходит в интернет:
+Скопируйте `vendor/py311-linux/` на сервер. Сборка больше не ходит в интернет.
 
-```bash
-podman-compose up --build -d
-```
-
-Не берите колёса из своего Windows-venv — они не подойдут Linux-образу.
-Скрипт качает именно `manylinux` / CPython 3.11.
-
-### Windows: имя уже смотрит на этот ПК
-
-`ncdc-dev.bsmuk.ru` → `uk-khv-001-nv.bsmuk.ru` → **10.30.30.30**.
-Если `ipconfig` показывает `10.30.30.30`, DNS правильный. Отказ в соединении —
-потому что **Podman слушает порты внутри своей ВМ**, а не на Ethernet Windows.
-Телефоны и браузер бьют в `10.30.30.30:80/443`, там пусто.
-
-Не чините hosts. Запускайте без контейнеров (venv у вас уже ставится):
+### Запуск без контейнеров (Windows / dev)
 
 ```powershell
 # в .env:
-# PUBLIC_BASE_URL=http://ncdc-dev.bsmuk.ru:8000
+# PUBLIC_BASE_URL=http://your-host:8000
 
 .\scripts\run-windows.ps1
 ```
 
-Дальше:
+- Админка: `http://localhost:8000/`
+- Health: `curl http://localhost:8000/health`
+- Логин: `NCDC_ADMIN_USER` / `NCDC_ADMIN_PASS` из `.env`
 
-* админка: http://10.30.30.30:8000/ или http://ncdc-dev.bsmuk.ru:8000/
-* health: `curl.exe http://10.30.30.30:8000/health`
-* брандмауэр: разрешить входящий TCP 8000
-
-Порт 80 (тогда URL без `:8000`) — тот же скрипт `-Port 80` из PowerShell **администратора**.
-
-Проверка, кто слушает:
-
-```powershell
-powershell -File .\scripts\where-is-ncdc.ps1
-```
-
-Логин: `NCDC_ADMIN_USER` / `NCDC_ADMIN_PASS` из `.env`.
-
-Без заполненного `.env` приложение **не стартует** — это специально, чтобы не поднять прод с `admin/ChangeMe123!`.
+Проверка, кто слушает порт: `powershell -File .\scripts\where-is-ncdc.ps1`
 
 ### Первичная настройка телефонов
 
-1. **Global Config** — проверьте URL провижининга, часовой пояс, Action URL (токен подставляется сам при первом старте).
-2. **Model Config** — создайте модель (T46U и т.д.), прошивку, 802.1x.
+1. **Global Config** — URL провижининга, часовой пояс, Action URL (токен подставляется при первом старте).
+2. **Model Config** — создайте модель (T46U, T54W…), прошивку, 802.1x.
 3. **Account List** — SIP-аккаунты.
 4. **Device List** — добавьте MAC вручную **или** включите `AUTO_ENROLL=true` и дождитесь первого запроса телефона.
 
-На телефоне (или через DHCP option 66/43) задайте:
+На телефоне (или через DHCP option 66/43):
 
-* Server URL: `https://ncdc.example.com/provision/`
-* Username / password: значения `PROVISION_USER` / `PROVISION_PASS`
+- Server URL: `https://ncdc.example.com/provision/`
+- Username / password: `PROVISION_USER` / `PROVISION_PASS`
 
-Без этих учёток cfg не отдаётся — SIP-пароли больше не торчат в открытую.
+Без этих учёток cfg не отдаётся.
 
 ### Переменные окружения
 
@@ -116,39 +95,60 @@ powershell -File .\scripts\where-is-ncdc.ps1
 | Переменная | Назначение |
 |---|---|
 | `PUBLIC_BASE_URL` | URL, который телефоны используют для cfg и Action URL |
-| `NCDC_ADMIN_PASS` | Пароль админки. Дефолты из git отклоняются |
+| `NCDC_ADMIN_PASS` | Пароль админки (дефолты из git отклоняются) |
 | `PROVISION_PASS` | HTTP Basic для `/provision` |
 | `ACTION_URI_TOKEN` | Секрет в `?token=` на `/actions` |
 | `AUTO_ENROLL` | Создавать телефон при первом cfg / Action URL |
 | `BOOT_OVERWRITE_MODE` | `1` — централизованные настройки перекрывают локальные |
+| `PROVISION_BOOTSTRAP` | `true` — отдавать cfg без Basic после заводского сброса |
 
-### Безопасность (обязательный минимум)
+### Безопасность
 
-* `/provision` закрыт HTTP Basic (`PROVISION_USER` / `PROVISION_PASS`).
-* `/actions` принимает запросы только с верным `token`.
-* Админка: Basic Auth + CSRF + lockout после 5 неверных попыток.
-* `DEBUG=false` по умолчанию, SQL-echo выключен.
-* Пароли SIP в формах не отображаются; пустое поле = оставить прежний.
-* Контейнер запускается от пользователя `ncdc` (uid 1000).
+- `/provision` закрыт HTTP Basic (`PROVISION_USER` / `PROVISION_PASS`).
+- `/actions` принимает запросы только с верным `token`.
+- Админка: Basic Auth + CSRF + lockout после 5 неверных попыток.
+- `DEBUG=false` по умолчанию, SQL-echo выключен.
+- Пароли SIP в формах не отображаются; пустое поле = оставить прежний.
+- Контейнер запускается от пользователя `ncdc` (uid 1000).
+- Приложение не стартует с пустыми / известными слабыми паролями.
 
-### Структура
+### Структура проекта
 
 ```text
 ncdc-qwen/
 ├── app/
-│   ├── main.py
-│   ├── config.py
-│   ├── security.py
-│   ├── middleware/          # admin auth, CSRF
-│   ├── routers/
-│   ├── services/
-│   └── templates/
+│   ├── main.py              # Точка входа FastAPI + lifespan
+│   ├── config.py            # Settings из .env
+│   ├── models.py            # SQLAlchemy: Phone, Account, PhoneModel, …
+│   ├── security.py          # MAC, quote_cfg, detect_model, throttle
+│   ├── database.py          # Engine, миграции
+│   ├── defaults.py          # Стартовый global cfg + Action URL
+│   ├── middleware/          # Basic Auth, CSRF
+│   ├── routers/             # phones, accounts, provisioning, actions, …
+│   ├── services/            # config_builder, linekeys, push, audit
+│   ├── templates/           # Админка (Jinja2 + HTMX) + provision/*.j2
+│   └── static/
+├── configs/                 # Вспомогательные данные
 ├── nginx/nginx.conf
-├── scripts/gen-ssl.sh
+├── scripts/                 # gen-ssl, run-windows, download-wheels
+├── tests/
+├── vendor/py311-linux/      # Опциональные offline-колёса
 ├── .env.example
 ├── Dockerfile / Containerfile
-└── podman-compose.yml
+├── podman-compose.yml
+├── requirements.txt
+└── FIXES.md
 ```
+
+### Возможности
+
+- Иерархическая генерация cfg: global → model (`$PN.cfg`) → device (`$MAC.cfg`)
+- Auto-enroll неизвестных MAC + автоопределение модели из User-Agent
+- 802.1x (EAP-MD5 / TLS / PEAP / TTLS)
+- DSS / Line keys с override на уровне устройства
+- AutoP push (с учётом самоподписанных cert трубок)
+- Журнал аудита с ротацией
+- Экспорт/импорт cfg (`yealink_export.py`, `yealink_bulk_export.py`)
 
 ### Тесты
 
