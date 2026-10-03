@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 
 
 from app.database import get_db
-from app.models import GlobalConfig
+from app.models import GlobalConfig, PhoneModel
 from app.services.audit import log_action, admin_user
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -315,6 +315,7 @@ async def global_config(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "grouped_settings": grouped_settings,
             "custom_params": custom_params,
+            "models": db.query(PhoneModel).order_by(PhoneModel.name).all(),  # <-- ДОБАВИТЬ
         },
     )
 
@@ -400,7 +401,7 @@ async def auto_enroll_status():
 @router.post("/import-configs")
 async def import_configs(request: Request, db: Session = Depends(get_db)):
     """Пакетная загрузка экспортированных cfg-файлов Yealink."""
-    from app.services.cfg_import import import_cfg_file
+    from app.services.cfg_import import import_batch
     from app.services.audit import log_action, admin_user
 
     form = await request.form()
@@ -408,13 +409,17 @@ async def import_configs(request: Request, db: Session = Depends(get_db)):
     if not uploads:
         raise HTTPException(status_code=400, detail="Файлы не загружены")
 
-    report = []
+    model_name = form.get("model") or None
+    promote = form.get("promote") == "1"
+
+    files = []
     for up in uploads:
         data = await up.read()
-        text = data.decode("utf-8", errors="replace")
-        report.append(import_cfg_file(db, up.filename or "unknown.cfg", text))
+        files.append((up.filename or "unknown.cfg", data.decode("utf-8", errors="replace")))
 
-    ok = sum(1 for r in report if r["ok"])
+    result = import_batch(db, files, model_name, promote)
+
     log_action(db, "IMPORT_CONFIGS", "Settings", 0, admin_user(request),
-               f"Imported {ok}/{len(report)} config files")
-    return {"status": "success", "imported": ok, "total": len(report), "report": report}
+               f"Imported {result['imported']}/{result['total']}, "
+               f"promoted to global: {len(result['promoted'])}")
+    return result

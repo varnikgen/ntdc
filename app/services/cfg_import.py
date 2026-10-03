@@ -12,7 +12,7 @@ import re
 
 from sqlalchemy.orm import Session
 
-from app.models import Phone, Account, GlobalConfig
+from app.models import Phone, Account, GlobalConfig, PhoneModel
 from app.security import normalize_mac
 
 logger = logging.getLogger("ncdc.cfg_import")
@@ -47,6 +47,8 @@ def parse_yealink_cfg(text: str) -> dict:
         key, value = key.strip(), value.strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
+        if value.lower() == "none":
+            value = ""          # Yealink экспортирует литерал None для пустых значений
         if key:
             out[key] = value
     return out
@@ -217,3 +219,148 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
         "dss_keys": len(dss),
         "accounts": accounts_imported,
     }
+
+def import_batch(db: Session, files: list, model_name: str | None, promote_common: bool) -> dict:
+    """Пакетный импорт с продвижением общих ключей в Global Config.
+
+    files: список кортежей (filename, text)
+    """
+    report = []
+    parsed_all = []
+
+    for filename, text in files:
+        mac = mac_from_filename(filename)
+        if not mac:
+            report.append({"file": filename, "ok": False, "error": "MAC не найден в имени файла"})
+            continue
+        parsed = parse_yealink_cfg(text)
+        if not parsed:
+            report.append({"file": filename, "ok": False, "error": "Файл пустой или не распознан"})
+            continue
+        parsed_all.append((filename, mac, parsed))
+
+    # Настройки выбранной модели — для вычитания модельных ключей
+    model_settings = {}
+    if model_name:
+        m = db.query(PhoneModel).filter(PhoneModel.name == model_name).first()
+        if m and m.default_config:
+            model_settings = m.default_config
+
+    g = db.query(GlobalConfig).first()
+    if not g:
+        g = GlobalConfig(settings={})
+        db.add(g)
+        db.commit()
+    global_settings = dict(g.settings or {})
+
+    # Остаток каждого файла: без account.*, linekey.* и игнорируемых префиксов
+    remainders = []
+    for filename, mac, parsed in parsed_all:
+        rem = {
+            k: v for k, v in parsed.items()
+            if not k.startswith(IMPORT_IGNORE_PREFIXES)
+            and not LINEKEY_RE.match(k)
+            and v != ""                      # пустые значения информации не несут
+        }
+        remainders.append(rem)
+
+    # 1. Продвижение общих ключей в Global Config
+    promoted, conflicts = [], []
+    if promote_common and remainders:
+        common = {
+            k: v for k, v in remainders[0].items()
+            if all(r.get(k) == v for r in remainders)
+        }
+        for k, v in common.items():
+            cur = global_settings.get(k)
+            if cur is None:
+                global_settings[k] = v
+                promoted.append(k)
+            elif str(cur) != str(v):
+                conflicts.append(f"{k}: global={cur}, файл={v} (оставлено персонально)")
+        if promoted:
+            g.settings = global_settings
+            db.commit()
+            logger.info("Promoted %d common keys to Global Config: %s", len(promoted), promoted)
+
+    # 2. Персональный импорт каждого файла
+    for (filename, mac, parsed), rem in zip(parsed_all, remainders):
+        raw_accounts = parse_accounts(parsed)
+        account_ids, primary_id, accounts_imported = [], None, 0
+        for line_no in sorted(raw_accounts):
+            raw = raw_accounts[line_no]
+            if raw.get("enable") == "0":
+                continue
+            acc = find_or_create_account(db, raw)
+            if acc:
+                account_ids.append(acc.id)
+                if primary_id is None:
+                    primary_id = acc.id
+                accounts_imported += 1
+
+        # Дифференцируем остаток против global (уже с promoted) и model
+        custom, dss = _diff_remainder(rem, global_settings, model_settings, parsed)
+
+        phone = db.query(Phone).filter(Phone.mac.ilike(mac)).first()
+        created = phone is None
+        if created:
+            phone = Phone(mac=mac, status="unregistered")
+            db.add(phone)
+
+        phone.custom_config = custom
+        phone.custom_dss_keys = dss
+        phone.override_dss_keys = bool(dss)
+        phone.account_ids = account_ids
+        phone.primary_account_id = primary_id
+        if model_name:
+            phone.model_name = model_name
+
+        db.commit()
+        db.refresh(phone)
+        report.append({
+            "file": filename, "ok": True, "mac": mac, "created": created,
+            "custom_keys": len(custom), "dss_keys": len(dss),
+            "accounts": accounts_imported,
+        })
+
+    ok = sum(1 for r in report if r.get("ok"))
+    return {
+        "status": "success", "imported": ok, "total": len(report),
+        "report": report, "promoted": promoted, "conflicts": conflicts,
+    }
+
+def _diff_remainder(rem: dict, global_settings: dict, model_settings: dict, parsed: dict):
+    """Оставляет в custom только то, чего нет ни в global, ни в model; linekey -> dss."""
+    custom = {}
+    linekeys = {}
+    for key, value in rem.items():
+        g = global_settings.get(key)
+        if g is not None and str(g) == str(value):
+            continue
+        m = model_settings.get(key)
+        if m is not None and str(m) == str(value):
+            continue
+        lk = LINEKEY_RE.match(key)
+        if lk:
+            n, field = int(lk.group(1)), lk.group(2)
+            linekeys.setdefault(n, {"line": n})[field] = value
+            continue
+        custom[key] = value
+
+    # linekey.* пришли из rem без значений global/model — берём их из parsed целиком
+    dss = []
+    for n, f in sorted(linekeys.items()):
+        try:
+            ktype = int(f.get("type") or 0)
+        except (TypeError, ValueError):
+            ktype = 0
+        if ktype == 0:
+            continue
+        acc = f.get("line", "1")
+        dss.append({
+            "line": n, "type": ktype,
+            "account": int(acc) if str(acc).isdigit() else 1,
+            "value": f.get("value", ""), "extension": f.get("extension", ""),
+            "label": f.get("label", ""),
+        })
+    return custom, dss
