@@ -56,6 +56,11 @@ def login(page, host, user, password):
     page.goto(f"https://{host}/", wait_until="domcontentloaded")
     pwd = page.locator("input[type='password']").first
     pwd.wait_for()
+    page.wait_for_timeout(500)
+    try:
+        login_text = page.title() + "\n" + page.locator("body").inner_text(timeout=3_000)
+    except Exception:
+        login_text = ""
     page.locator("input[type='text']").first.fill(user)
     pwd.fill(password)
     pwd.press("Enter")
@@ -71,6 +76,45 @@ def login(page, host, user, password):
         pwd.wait_for(state="hidden")
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(1000)
+    return login_text
+
+
+# --- определение модели и MAC ---------------------------------------------------------
+
+MAC_RE = re.compile(r"\b[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}\b")
+MODEL_RE = re.compile(r"SIP[- ]([A-Z]{1,3}\d{2,3}[A-Z0-9]*)")
+
+
+def all_text(page) -> str:
+    texts = []
+    for fr in page.frames:
+        try:
+            texts.append(fr.locator("body").inner_text(timeout=3_000))
+        except Exception:
+            pass
+    return "\n".join(texts)
+
+
+def detect_device_info(page, login_text: str):
+    """Возвращает (mac, model). Модель — из страницы входа или «Статуса», MAC — из «Статуса».
+    Если что-то не определилось — None."""
+    m = MODEL_RE.search(login_text)
+    model = m.group(1) if m else None
+    mac = None
+
+    deadline = time.monotonic() + 8
+    while True:
+        text = all_text(page)
+        m = MAC_RE.search(text)
+        if m:
+            mac = m.group(0).replace(":", "").upper()
+        if not model:
+            m = MODEL_RE.search(text)
+            model = m.group(1) if m else None
+        if mac or time.monotonic() > deadline:
+            break
+        page.wait_for_timeout(500)
+    return mac, model
 
 
 # --- способы открыть страницу «Конфигурации» -------------------------------------------
@@ -119,6 +163,7 @@ def open_config_page(page, host):
 
 def dump_debug(page, out_dir: Path):
     """Сохраняет информацию для диагностики."""
+    out_dir.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(out_dir / "error.png"), full_page=True)
     print(f"Скриншот ошибки: {out_dir / 'error.png'}", file=sys.stderr)
     print(f"URL страницы: {page.url}", file=sys.stderr)
@@ -134,7 +179,7 @@ def dump_debug(page, out_dir: Path):
 SKIP_EXT = (".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".map")
 
 
-def click_export(page, context, btn, host, out_dir: Path) -> Path:
+def click_export(page, context, btn, make_name, out_dir: Path) -> Path:
     """Кликает «Экспорт» и сохраняет файл.
     1) обычный путь: событие скачивания в браузере;
     2) запасной: если браузер отклонил ответ телефона (chrome-error), повторяем
@@ -153,7 +198,7 @@ def click_export(page, context, btn, host, out_dir: Path) -> Path:
             with page.expect_download(timeout=30_000) as dl_info:
                 btn.click()
             download = dl_info.value
-            target = out_dir / f"{host}_{download.suggested_filename}"
+            target = out_dir / make_name(Path(download.suggested_filename).suffix)
             download.save_as(target)
             return target
         except PWTimeout:
@@ -186,12 +231,13 @@ def click_export(page, context, btn, host, out_dir: Path) -> Path:
     cd = resp.headers.get("content-disposition", "")
     m = re.search(r"filename\*?=(?:UTF-8'')?\"?([^\";]+)\"?", cd, re.I)
     name = Path(unquote(m.group(1))).name if m else "config.cfg"
-    target = out_dir / f"{host}_{name}"
+    target = out_dir / make_name(Path(name).suffix)
     target.write_bytes(resp.body())
     return target
 
 
-def export_config(host, user, password, out_dir: Path, headless: bool) -> Path:
+def export_config(host, user, password, out_dir: Path, headless: bool):
+    """Возвращает (path, mac, model); mac и model могут быть None."""
     out_dir.mkdir(parents=True, exist_ok=True)
 
     with sync_playwright() as p:
@@ -202,7 +248,13 @@ def export_config(host, user, password, out_dir: Path, headless: bool) -> Path:
         page.on("dialog", lambda d: d.accept())  # alert/confirm от телефона
 
         try:
-            login(page, host, user, password)
+            login_text = login(page, host, user, password)
+            mac, model = detect_device_info(page, login_text)
+            print(f"Определено: модель={model or '?'}, MAC={mac or '?'}")
+
+            def make_name(ext: str) -> str:
+                parts = [host] + [x for x in (mac, f"{model}-all" if model else "all") if x]
+                return "_".join(parts) + (ext or ".cfg")
 
             export_btn = open_config_page(page, host)
             if export_btn is None:
@@ -212,11 +264,12 @@ def export_config(host, user, password, out_dir: Path, headless: bool) -> Path:
                 )
 
             export_btn.scroll_into_view_if_needed()
-            return click_export(page, context, export_btn, host, out_dir)
+            target = click_export(page, context, export_btn, make_name, out_dir)
+            return target, mac, model
 
         except Exception:
             try:
-                dump_debug(page, out_dir)
+                dump_debug(page, out_dir / "debug" / host)
             except Exception:
                 pass
             raise
@@ -235,7 +288,7 @@ def main():
     args = ap.parse_args()
 
     try:
-        path = export_config(args.host, args.user, args.password, Path(args.out), headless=not args.show)
+        path, _mac, _model = export_config(args.host, args.user, args.password, Path(args.out), headless=not args.show)
     except Exception as e:
         print(f"Ошибка: {e}", file=sys.stderr)
         sys.exit(1)

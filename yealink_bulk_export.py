@@ -9,16 +9,14 @@
 import argparse
 import ipaddress
 import json
-import re
 import socket
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
-from yealink_export import export_config  # переиспользуем вашу логику логина/экспорта
-
-MAC_IN_NAME_RE = re.compile(r"(?<![0-9A-Fa-f.:])([0-9A-Fa-f]{12})(?![0-9A-Fa-f])")
+from yealink_export import export_config  # логика входа/экспорта
 
 
 def expand_hosts(spec: str) -> list:
@@ -29,8 +27,9 @@ def expand_hosts(spec: str) -> list:
         return [h.strip() for h in spec.split(",") if h.strip()]
     p = Path(spec)
     if p.is_file():
-        return [ln.strip() for ln in p.read_text().splitlines()
-                if ln.strip() and not ln.startswith("#")]
+        # utf-8-sig — на случай BOM у файлов, сохранённых в Блокноте Windows
+        return [ln.strip() for ln in p.read_text(encoding="utf-8-sig").splitlines()
+                if ln.strip() and not ln.strip().startswith("#")]
     return [spec]
 
 
@@ -45,9 +44,11 @@ def tcp_alive(host: str, ports=(443, 80), timeout=1.5):
     return None
 
 
-def mac_from_filename(name: str):
-    m = MAC_IN_NAME_RE.search(name)
-    return m.group(1).upper() if m else None
+def scan(hosts: list, workers: int = 64) -> dict:
+    """Параллельная проверка доступности. Возвращает {host: port} в исходном порядке."""
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        ports = list(ex.map(tcp_alive, hosts))
+    return {h: p for h, p in zip(hosts, ports) if p}
 
 
 def main():
@@ -57,38 +58,42 @@ def main():
     ap.add_argument("-p", "--password", default="admin")
     ap.add_argument("-o", "--out", default="./configs")
     ap.add_argument("--retries", type=int, default=2)
+    ap.add_argument("--workers", type=int, default=64, help="потоков для проверки доступности")
     ap.add_argument("--show", action="store_true")
     args = ap.parse_args()
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     hosts = expand_hosts(args.hosts)
+
+    print(f"Всего адресов: {len(hosts)}. Проверяю доступность...")
+    alive = scan(hosts, args.workers)
+    skipped = len(hosts) - len(alive)
+    print(f"Доступно: {len(alive)}, недоступно: {skipped}")
+
     index = []
-    ok = fail = skipped = 0
+    ok = fail = 0
+    total = len(alive)
 
-    print(f"Всего адресов: {len(hosts)}")
-    for i, host in enumerate(hosts, 1):
-        port = tcp_alive(host)
-        if not port:
-            skipped += 1
-            continue  # мёртвый адрес — не тратим время на браузер
-
+    for i, (host, port) in enumerate(alive.items(), 1):
         entry = {"ts": datetime.now(timezone.utc).isoformat(),
-                 "ip": host, "port": port, "mac": None, "file": None, "error": None}
+                 "ip": host, "port": port, "mac": None, "model": None,
+                 "file": None, "error": None}
+
         for attempt in range(1, args.retries + 1):
             try:
-                path = export_config(host, args.user, args.password,
-                                     out_dir, headless=not args.show)
-                entry["mac"] = mac_from_filename(path.name)
-                entry["file"] = path.name
+                path, mac, model = export_config(host, args.user, args.password,
+                                                 out_dir, headless=not args.show)
+                entry.update(mac=mac, model=model, file=path.name, error=None)
                 ok += 1
-                print(f"[{i}/{len(hosts)}] {host} -> {path.name} (MAC: {entry['mac']})")
+                print(f"[{i}/{total}] {host} -> {path.name}")
                 break
             except Exception as e:
-                entry["error"] = str(e)
-                print(f"[{i}/{len(hosts)}] {host} попытка {attempt} НЕУДАЧНО: {e}",
-                      file=sys.stderr)
-                time.sleep(2)
+                entry["error"] = str(e).splitlines()[0] if str(e) else repr(e)
+                print(f"[{i}/{total}] {host} попытка {attempt}/{args.retries} НЕУДАЧНО: "
+                      f"{entry['error']}", file=sys.stderr)
+                if attempt < args.retries:
+                    time.sleep(2)
         else:
             fail += 1
 
@@ -99,6 +104,9 @@ def main():
 
     print(f"\nИтог: успешно {ok}, ошибок {fail}, пропущено (недоступны) {skipped}")
     print(f"Файлы и index.json: {out_dir.resolve()}")
+    if fail:
+        print(f"Диагностика неудачных хостов: {(out_dir / 'debug').resolve()}")
+    sys.exit(1 if fail else 0)
 
 
 if __name__ == "__main__":
