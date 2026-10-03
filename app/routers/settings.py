@@ -91,12 +91,12 @@ SELECT_OPTIONS = {
         "2": "IPv4 & IPv6",
     },
     "local_time.date_format": {
-        "0": "YYYY-MM-DD",
-        "1": "DD-MM-YYYY",
-        "2": "MM-DD-YYYY",
+        "0": "WWW MMM DD",
+        "1": "DD-MMM-YY",
+        "2": "YYYY-MM-DD",
         "3": "DD/MM/YYYY",
-        "4": "MM/DD/YYYY",
-        "5": "YYYY/MM/DD",
+        "4": "MM/DD/YY",
+        "5": "DD MMM YYYY",
     },
     "local_time.time_zone": {
         "-12": "UTC-12",
