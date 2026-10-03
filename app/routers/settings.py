@@ -245,6 +245,14 @@ PASSWORD_PARAMS = {
 AUTO_ENROLL_UNTIL = None
 
 
+def auto_enroll_active() -> bool:
+    """Живая проверка: включён ли временный auto-enroll прямо сейчас."""
+    global AUTO_ENROLL_UNTIL
+    if AUTO_ENROLL_UNTIL and datetime.utcnow() < AUTO_ENROLL_UNTIL:
+        return True
+    AUTO_ENROLL_UNTIL = None
+    return False
+
 def normalize_value(param: str, value: str):
     """Yealink ждёт 0/1 и int, форма всегда шлёт строки."""
     if param in BOOLEAN_PARAMS:

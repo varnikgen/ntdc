@@ -8,6 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 import logging
+import re
 
 from app.config import settings
 from app.database import get_db
@@ -15,7 +16,7 @@ from app.middleware.auth import provision_authorized
 from app.models import Phone, PhoneModel, GlobalConfig
 from app.provision_templates import jinja_env
 from app.provision_url import boot_file_body
-from app.routers.settings import AUTO_ENROLL_UNTIL
+from app.routers.settings import auto_enroll_active
 from app.security import MAC_RE, normalize_mac
 from app.phone_ip import pick_phone_ip, reported_phone_ip
 from app.services.config_builder import build_phone_config, build_model_config
@@ -66,7 +67,7 @@ async def get_global_config(request: Request, db: Session = Depends(get_db)):
 @router.get("/{identifier}.cfg")
 async def get_config(identifier: str, request: Request, db: Session = Depends(get_db)):
     """12 hex → phone cfg; иначе считаем identifier именем модели ($PN)."""
-    _require_provision_auth(request)
+    _require_cfg_auth(request)
 
     if MAC_RE.match(identifier):
         mac = normalize_mac(identifier)
@@ -74,9 +75,7 @@ async def get_config(identifier: str, request: Request, db: Session = Depends(ge
         
         if not phone:
             # Проверяем AUTO_ENROLL (из .env ИЛИ временное включение)
-            auto_enroll_enabled = settings.AUTO_ENROLL or (
-                AUTO_ENROLL_UNTIL and datetime.utcnow() < AUTO_ENROLL_UNTIL
-            )
+            auto_enroll_enabled = settings.AUTO_ENROLL or auto_enroll_active()
             
             if auto_enroll_enabled:
                 # Определяем модель по User-Agent
