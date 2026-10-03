@@ -245,13 +245,17 @@ document.getElementById('importForm').addEventListener('submit', async function(
         if (response.ok) {
             let rows = data.report.map(r =>
                 `<tr class="${r.ok ? '' : 'table-danger'}">
-                   <td>${r.file}</td><td><code>${r.mac || '—'}</code></td>
-                   <td>${r.ok ? (r.created ? 'создан' : 'обновлён') : r.error}</td>
-                   <td>${r.custom_keys ?? ''}</td><td>${r.dss_keys ?? ''}</td>
-                 </tr>`).join('');
-            res.innerHTML = `<div class="alert alert-success">Импортировано ${data.imported} из ${data.total}</div>
+                    <td>${r.file}</td>
+                    <td><code>${r.mac || '—'}</code></td>
+                    <td>${r.ok ? (r.created ? 'создан' : 'обновлён') : (r.error || 'ошибка')}</td>
+                    <td>${r.custom_keys ?? ''}</td>
+                    <td>${r.dss_keys ?? ''}</td>
+                    <td>${r.accounts ?? ''}</td>
+                </tr>`).join('');
+            res.innerHTML = `
+                <div class="alert alert-success">Импортировано ${data.imported} из ${data.total}</div>
                 <table class="table table-sm table-bordered">
-                <thead><tr><th>Файл</th><th>MAC</th><th>Результат</th><th>Ключей</th><th>DSS</th></tr></thead>
+                <thead><tr><th>Файл</th><th>MAC</th><th>Результат</th><th>Ключей</th><th>DSS</th><th>Аккаунтов</th></tr></thead>
                 <tbody>${rows}</tbody></table>`;
         } else {
             res.innerHTML = `<div class="alert alert-danger">Ошибка: ${data.detail}</div>`;
