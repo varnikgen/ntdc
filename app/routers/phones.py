@@ -74,7 +74,7 @@ async def list_phones(
         "phones/list.html",
         {
             "request": request,
-            "phones": pg["items"],
+            "phones": pg["rows"],
             "stats": stats,
             "pagination": pg,
             "q": q,

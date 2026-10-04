@@ -2,7 +2,7 @@
 <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-top bg-white" aria-label="Пагинация">
     <div class="text-muted small">
         Показано
-        <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong>–<strong>{{ (pagination.page - 1) * pagination.per_page + pagination.items|length }}</strong>
+        <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong>–<strong>{{ (pagination.page - 1) * pagination.per_page + pagination.count }}</strong>
         из <strong>{{ pagination.total }}</strong>
         {% if q %}(фильтр: «{{ q }}»){% endif %}
     </div>

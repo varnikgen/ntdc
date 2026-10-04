@@ -70,7 +70,7 @@ async def list_accounts(
         "accounts/list.html",
         {
             "request": request,
-            "accounts": pg["items"],
+            "accounts": pg["rows"],
             "pagination": pg,
             "q": q,
             "per_page_options": ALLOWED_PER_PAGE,
