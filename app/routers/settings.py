@@ -188,14 +188,6 @@ async def import_configs(request: Request, db: Session = Depends(get_db)):
     """Пакетная загрузка экспортированных cfg-файлов Yealink."""
     from app.services.cfg_import import import_batch
     from app.services.audit import log_action, admin_user
-from app.settings_schema import (
-    PARAM_LABELS,
-    SELECT_OPTIONS,
-    PARAM_GROUPS,
-    BOOLEAN_PARAMS,
-    INT_PARAMS,
-    PASSWORD_PARAMS,
-)
 
     form = await request.form()
     uploads = form.getlist("files")
