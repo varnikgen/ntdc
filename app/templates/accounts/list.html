@@ -21,15 +21,15 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" id="accountsTable">
+            <table class="table table-hover align-middle mb-0 ncdc-sortable" id="accountsTable">
                 <thead class="table-light">
                     <tr>
-                        <th>Имя</th>
-                        <th>Username</th>
-                        <th>SIP Server</th>
-                        <th>Transport</th>
-                        <th>Display Name</th>
-                        <th>DSS</th>
+                        <th data-sort="0">Имя</th>
+                        <th data-sort="1">Username</th>
+                        <th data-sort="2">SIP Server</th>
+                        <th data-sort="3">Transport</th>
+                        <th data-sort="4">Display Name</th>
+                        <th data-sort="5" data-sort-type="number">DSS</th>
                         <th class="text-end">Действия</th>
                     </tr>
                 </thead>
@@ -37,12 +37,12 @@
                     {% for acc in accounts %}
                     <tr data-searchable
                         data-search="{{ acc.name }} {{ acc.username }} {{ acc.sip_server }} {{ acc.display_name or '' }}">
-                        <td class="fw-semibold">{{ acc.name }}</td>
-                        <td class="font-monospace">{{ acc.username }}</td>
-                        <td class="font-monospace">{{ acc.sip_server }}:{{ acc.sip_port }}</td>
-                        <td><span class="badge text-bg-info">{{ acc.transport | upper }}</span></td>
-                        <td>{{ acc.display_name or '—' }}</td>
-                        <td>
+                        <td class="fw-semibold" data-sort-value="{{ acc.name }}">{{ acc.name }}</td>
+                        <td class="font-monospace" data-sort-value="{{ acc.username }}">{{ acc.username }}</td>
+                        <td class="font-monospace" data-sort-value="{{ acc.sip_server }}:{{ acc.sip_port }}">{{ acc.sip_server }}:{{ acc.sip_port }}</td>
+                        <td data-sort-value="{{ acc.transport }}"><span class="badge text-bg-info">{{ acc.transport | upper }}</span></td>
+                        <td data-sort-value="{{ acc.display_name or '' }}">{{ acc.display_name or '—' }}</td>
+                        <td data-sort-value="{{ acc.dss_keys | length if acc.dss_keys else 0 }}">
                             {% if acc.dss_keys %}
                                 <span class="badge text-bg-secondary">{{ acc.dss_keys | length }}</span>
                             {% else %}

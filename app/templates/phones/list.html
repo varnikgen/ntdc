@@ -56,14 +56,14 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" id="phonesTable">
+            <table class="table table-hover align-middle mb-0 ncdc-sortable" id="phonesTable">
                 <thead class="table-light">
                     <tr>
-                        <th>MAC</th>
-                        <th>Модель</th>
-                        <th>IP</th>
-                        <th>Статус</th>
-                        <th>Last Seen</th>
+                        <th data-sort="0">MAC</th>
+                        <th data-sort="1">Модель</th>
+                        <th data-sort="2" data-sort-type="ip">IP</th>
+                        <th data-sort="3">Статус</th>
+                        <th data-sort="4">Last Seen</th>
                         <th class="text-end">Действия</th>
                     </tr>
                 </thead>
@@ -71,9 +71,9 @@
                     {% for phone in phones %}
                     <tr data-searchable
                         data-search="{{ phone.mac }} {{ phone.model_name or '' }} {{ phone.ip_address or '' }} {{ phone.status }}">
-                        <td class="fw-semibold font-monospace">{{ phone.mac }}</td>
-                        <td>{{ phone.model_name or '—' }}</td>
-                        <td class="font-monospace">{{ phone.ip_address or '—' }}</td>
+                        <td class="fw-semibold font-monospace" data-sort-value="{{ phone.mac }}">{{ phone.mac }}</td>
+                        <td data-sort-value="{{ phone.model_name or '' }}">{{ phone.model_name or '—' }}</td>
+                        <td class="font-monospace" data-sort-value="{{ phone.ip_address or '' }}">{{ phone.ip_address or '—' }}</td>
                         <td>
                             {% if phone.status == 'online' %}
                                 <span class="badge badge-status-online">Online</span>
@@ -85,7 +85,7 @@
                                 <span class="badge badge-status-offline">Offline</span>
                             {% endif %}
                         </td>
-                        <td class="text-muted small">{{ phone.last_seen.strftime('%Y-%m-%d %H:%M') if phone.last_seen else '—' }}</td>
+                        <td class="text-muted small" data-sort-value="{{ phone.last_seen.isoformat() if phone.last_seen else '' }}">{{ phone.last_seen.strftime('%Y-%m-%d %H:%M') if phone.last_seen else '—' }}</td>
                         <td class="text-end text-nowrap">
                             <a href="/phones/{{ phone.id }}/edit" class="btn btn-sm btn-outline-primary" title="Редактировать">
                                 <i class="bi bi-pencil"></i>

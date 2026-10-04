@@ -70,3 +70,74 @@ document.addEventListener('DOMContentLoaded', function () {
     ncdcTableSearch(input.id || input.getAttribute('id'), tableId);
   });
 });
+
+/**
+ * Click-to-sort on tables with thead th[data-sort].
+ * Optional data-sort-type="ip" | "number" | "text" (default text).
+ */
+function ncdcInitSortableTables() {
+  document.querySelectorAll('table.ncdc-sortable').forEach(function (table) {
+    var headers = table.querySelectorAll('thead th[data-sort]');
+    headers.forEach(function (th, idx) {
+      th.style.cursor = 'pointer';
+      th.title = th.title || 'Сортировать';
+      if (!th.querySelector('.sort-ind')) {
+        var ind = document.createElement('span');
+        ind.className = 'sort-ind text-muted ms-1';
+        ind.textContent = '⇅';
+        th.appendChild(ind);
+      }
+      th.addEventListener('click', function () {
+        var col = parseInt(th.getAttribute('data-sort'), 10);
+        if (isNaN(col)) col = idx;
+        var type = th.getAttribute('data-sort-type') || 'text';
+        var tbody = table.tBodies[0];
+        if (!tbody) return;
+        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-searchable]'));
+        var dir = th.getAttribute('data-dir') === 'asc' ? 'desc' : 'asc';
+        headers.forEach(function (h) {
+          h.setAttribute('data-dir', '');
+          var i = h.querySelector('.sort-ind');
+          if (i) i.textContent = '⇅';
+        });
+        th.setAttribute('data-dir', dir);
+        var ind = th.querySelector('.sort-ind');
+        if (ind) ind.textContent = dir === 'asc' ? '▲' : '▼';
+
+        function cellVal(row) {
+          var cell = row.cells[col];
+          if (!cell) return '';
+          var raw = cell.getAttribute('data-sort-value');
+          if (raw === null || raw === undefined) raw = (cell.textContent || '').trim();
+          return raw;
+        }
+        function cmp(a, b) {
+          var va = cellVal(a);
+          var vb = cellVal(b);
+          var r = 0;
+          if (type === 'number') {
+            r = (parseFloat(va) || 0) - (parseFloat(vb) || 0);
+          } else if (type === 'ip') {
+            function ipNum(s) {
+              var p = String(s).split('.');
+              if (p.length !== 4) return -1;
+              var n = 0;
+              for (var i = 0; i < 4; i++) n = n * 256 + (parseInt(p[i], 10) || 0);
+              return n;
+            }
+            r = ipNum(va) - ipNum(vb);
+          } else {
+            r = String(va).localeCompare(String(vb), 'ru', { numeric: true, sensitivity: 'base' });
+          }
+          return dir === 'asc' ? r : -r;
+        }
+        rows.sort(cmp);
+        rows.forEach(function (row) { tbody.appendChild(row); });
+      });
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  ncdcInitSortableTables();
+});

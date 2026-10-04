@@ -281,6 +281,7 @@ async function uploadConfigs() {
                     <td>${r.file}</td>
                     <td><code>${r.mac || '—'}</code></td>
                     <td>${r.model || '—'}</td>
+                    <td>${r.ip || '—'}</td>
                     <td>${r.ok ? (r.created ? 'создан' : 'обновлён') : (r.error || 'ошибка')}</td>
                     <td>${r.custom_keys ?? ''}</td>
                     <td>${r.dss_keys ?? ''}</td>
@@ -302,7 +303,7 @@ async function uploadConfigs() {
             res.innerHTML = `
                 <div class="alert alert-success">Импортировано ${data.imported} из ${data.total}</div>
                 <table class="table table-sm table-bordered">
-                    <thead><tr><th>Файл</th><th>MAC</th><th>Модель</th><th>Результат</th><th>Ключей</th><th>DSS</th><th>Аккаунтов</th></tr></thead>
+                    <thead><tr><th>Файл</th><th>MAC</th><th>Модель</th><th>IP</th><th>Результат</th><th>Ключей</th><th>DSS</th><th>Аккаунтов</th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>${extra}`;
         } else {

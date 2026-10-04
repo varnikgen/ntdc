@@ -59,6 +59,30 @@ def mac_from_filename(filename: str):
     return normalize_mac(m.group(1)) if m else None
 
 
+# Экспорт yealink_bulk_export: 10.30.16.10_44DBD222CF31_T31P-all.cfg
+IP_IN_NAME_RE = re.compile(
+    r"(?<![\d])((?:\d{1,3}\.){3}\d{1,3})(?![\d])"
+)
+
+
+def ip_from_filename(filename: str) -> str | None:
+    """Достаёт IPv4 из имени файла (обычно первый токен перед MAC)."""
+    if not filename:
+        return None
+    name = filename.rsplit("/", 1)[-1]
+    m = IP_IN_NAME_RE.search(name)
+    if not m:
+        return None
+    ip = m.group(1)
+    parts = ip.split(".")
+    try:
+        if len(parts) == 4 and all(0 <= int(p) <= 255 for p in parts):
+            return ip
+    except ValueError:
+        return None
+    return None
+
+
 def parse_accounts(parsed: dict) -> dict:
     """Группирует account.N.* в словарь {N: {...}}."""
     accounts: dict = {}
@@ -207,6 +231,9 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
     resolved_model = resolve_model_name(db, None, filename, parsed)
     if resolved_model:
         phone.model_name = resolved_model
+    ip = ip_from_filename(filename)
+    if ip:
+        phone.ip_address = ip
 
     db.commit()
     db.refresh(phone)
@@ -226,16 +253,23 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
 
 
 def detect_model_from_filename(filename: str) -> str | None:
-    """T46U_001565....cfg / 001565...._T46U.cfg / SIP-T46U-....cfg"""
+    """10.30.16.10_44DBD222CF31_T31P-all.cfg / T46U_001565....cfg / SIP-T46U-....cfg"""
     if not filename:
         return None
     name = filename.rsplit("/", 1)[-1]
-    name_upper = name.upper()
+    # убираем -all.cfg / .cfg
+    stem = re.sub(r"(?i)-all\.cfg$|\.cfg$", "", name)
+    name_upper = stem.upper()
     for model in sorted(KNOWN_MODELS, key=len, reverse=True):
+        # целый токен после MAC: _T31P в конце
+        if re.search(r"(?:^|[_\-])" + re.escape(model.upper()) + r"(?:$|[_\-])", name_upper):
+            return model.upper()
         if model.upper() in name_upper:
             return model.upper()
-    # общий шаблон SIP-T46U / T46U
-    m = re.search(r"(?:SIP[-_])?([A-Z]?T\d{2}[A-Z]?\d?[A-Z]?|W\d{2}[A-Z]?|CP\d{3}|VP[-_]?T?\d{2}[A-Z]?)", name_upper)
+    m = re.search(
+        r"(?:SIP[-_])?([A-Z]?T\d{2}[A-Z]?\d?[A-Z]?|W\d{2}[A-Z]?|CP\d{3}|VP[-_]?T?\d{2}[A-Z]?)",
+        name_upper,
+    )
     if m:
         return m.group(1).replace("_", "-")
     return None
@@ -390,6 +424,9 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
             phone.model_name = resolved_model
         elif not phone.model_name:
             phone.model_name = None
+        ip = ip_from_filename(filename)
+        if ip:
+            phone.ip_address = ip
 
         db.commit()
         db.refresh(phone)
@@ -398,6 +435,7 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
             "custom_keys": len(custom), "dss_keys": len(dss),
             "accounts": accounts_imported,
             "model": phone.model_name,
+            "ip": phone.ip_address,
         })
 
     ok = sum(1 for r in report if r.get("ok"))
