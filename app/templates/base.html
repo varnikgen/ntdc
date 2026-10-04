@@ -1,52 +1,61 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="{{ request.state.lang or 'ru' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}NCDC{% endblock %}</title>
+    <title>{% block title %}{{ request.state.t.short }}{% endblock %}</title>
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
     <link href="/static/css/bootstrap-icons.min.css" rel="stylesheet">
     <link href="/static/css/app.css" rel="stylesheet">
-    <script src="/static/js/htmx.min.js"></script>
 </head>
 <body>
     <div class="app-shell">
         <aside class="sidebar">
             <div class="sidebar-brand">
-                <h4>NCDC</h4>
-                <small>v{{ request.app.version }}</small>
+                <i class="bi bi-telephone-forward"></i>
+                <div>
+                    <h4 class="mb-0">{{ request.state.t.short }}</h4>
+                    <div class="small opacity-75" style="font-size:0.65rem;line-height:1.2">{{ request.state.t.full }}</div>
+                </div>
             </div>
             <nav class="sidebar-nav">
                 {% set role = request.state.admin_role or 'admin' %}
+                {% set t = request.state.t %}
                 <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">
-                    <i class="bi bi-speedometer2"></i> Dashboard
+                    <i class="bi bi-speedometer2"></i> {{ t('nav.dashboard') }}
                 </a>
-                <div class="nav-header">Устройства</div>
+                <div class="nav-header">{{ t('nav.devices') }}</div>
                 <a href="/phones" class="{% if request.url.path.startswith('/phones') %}active{% endif %}">
-                    <i class="bi bi-telephone"></i> Список устройств
+                    <i class="bi bi-telephone"></i> {{ t('nav.device_list') }}
                 </a>
-                <div class="nav-header">Аккаунты</div>
+                <div class="nav-header">{{ t('nav.accounts') }}</div>
                 <a href="/accounts" class="{% if request.url.path.startswith('/accounts') %}active{% endif %}">
-                    <i class="bi bi-person-badge"></i> SIP-аккаунты
+                    <i class="bi bi-person-badge"></i> {{ t('nav.sip_accounts') }}
                 </a>
                 {% if role == 'admin' %}
-                <div class="nav-header">Конфигурация</div>
+                <div class="nav-header">{{ t('nav.config') }}</div>
                 <a href="/settings/global" class="{% if request.url.path.startswith('/settings') %}active{% endif %}">
-                    <i class="bi bi-gear"></i> Global Config
+                    <i class="bi bi-gear"></i> {{ t('nav.global_config') }}
                 </a>
                 <a href="/models" class="{% if request.url.path.startswith('/models') %}active{% endif %}">
-                    <i class="bi bi-phone"></i> Модели
+                    <i class="bi bi-phone"></i> {{ t('nav.models') }}
                 </a>
-                <div class="nav-header">Система</div>
+                <div class="nav-header">{{ t('nav.system') }}</div>
                 <a href="/users" class="{% if request.url.path.startswith('/users') %}active{% endif %}">
-                    <i class="bi bi-people"></i> Пользователи
+                    <i class="bi bi-people"></i> {{ t('nav.users') }}
                 </a>
                 <a href="/audit" class="{% if request.url.path.startswith('/audit') %}active{% endif %}">
-                    <i class="bi bi-journal-text"></i> Журнал аудита
+                    <i class="bi bi-journal-text"></i> {{ t('nav.audit') }}
                 </a>
                 {% endif %}
             </nav>
             <div class="sidebar-footer">
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Language">
+                        <a href="{{ request.url.path }}?lang=ru" class="btn btn-sm {% if (request.state.lang or 'ru') == 'ru' %}btn-light{% else %}btn-outline-light{% endif %} py-0 px-2" title="{{ t('lang.ru') }}">RU</a>
+                        <a href="{{ request.url.path }}?lang=en" class="btn btn-sm {% if request.state.lang == 'en' %}btn-light{% else %}btn-outline-light{% endif %} py-0 px-2" title="{{ t('lang.en') }}">EN</a>
+                    </div>
+                </div>
                 <div class="d-flex align-items-center justify-content-between gap-2">
                     <span id="sidebar-user" class="text-truncate" title="{{ request.state.admin_user or '' }}">
                         <i class="bi bi-person-circle me-1"></i>{{ request.state.admin_user or 'admin' }}
@@ -54,7 +63,7 @@
                         <span class="badge text-bg-secondary ms-1" style="font-size:0.65rem">{{ request.state.admin_role }}</span>
                         {% endif %}
                     </span>
-                    <a href="/logout" class="btn btn-sm btn-outline-light py-0 px-2" title="Выйти"
+                    <a href="/logout" class="btn btn-sm btn-outline-light py-0 px-2" title="{{ t('nav.logout') }}"
                        onclick="event.preventDefault(); fetch('/logout', {method:'POST'}).finally(() => location.href='/login');">
                         <i class="bi bi-box-arrow-right"></i>
                     </a>
@@ -74,23 +83,23 @@
 
     <script src="/static/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/app.js"></script>
-    <!-- CSRF: cookie ncdc_csrf → заголовок X-CSRF-Token -->
     <script>
     function ncdcCsrfToken() {
         const match = document.cookie.split('; ').find(row => row.startsWith('ncdc_csrf='));
-        return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : '';
+        return match ? decodeURIComponent(match.split('=')[1]) : '';
     }
-    const _fetch = window.fetch;
-    window.fetch = function(input, init) {
-        init = init || {};
-        const headers = new Headers(init.headers || {});
-        const method = (init.method || 'GET').toUpperCase();
-        if (method !== 'GET' && method !== 'HEAD' && !headers.has('X-CSRF-Token')) {
-            headers.set('X-CSRF-Token', ncdcCsrfToken());
-        }
-        init.headers = headers;
-        return _fetch(input, init);
-    };
+    (function() {
+        const originalFetch = window.fetch;
+        window.fetch = function(input, init) {
+            init = init || {};
+            const headers = new Headers(init.headers || {});
+            if (!headers.has('X-CSRF-Token')) {
+                headers.set('X-CSRF-Token', ncdcCsrfToken());
+            }
+            init.headers = headers;
+            return originalFetch(input, init);
+        };
+    })();
     document.body.addEventListener('htmx:configRequest', function(event) {
         event.detail.headers['X-CSRF-Token'] = ncdcCsrfToken();
     });

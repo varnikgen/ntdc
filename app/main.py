@@ -16,6 +16,7 @@ from app.database import Base, SessionLocal, engine, get_db, run_migrations
 from app.defaults import seed_global_config
 from app.middleware.auth import auth_middleware
 from app.middleware.csrf import csrf_middleware
+from app.middleware.i18n import I18nMiddleware
 from app.models import Phone
 from app.routers import (
     accounts,
@@ -107,6 +108,7 @@ app.add_middleware(
     same_site="lax",
     https_only=False,  # True только если весь доступ строго по HTTPS
 )
+app.add_middleware(I18nMiddleware)
 
 app.include_router(provisioning.router)
 app.include_router(actions.router)

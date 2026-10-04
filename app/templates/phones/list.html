@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Список устройств - NCDC{% endblock %}
+{% block title %}{{ request.state.t("phones.title") }} — {{ request.state.t.short }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h2><i class="bi bi-telephone me-2"></i>Список устройств</h2>
+    <h2><i class="bi bi-telephone me-2"></i>{{ request.state.t("phones.title") }}</h2>
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
         <div class="card stat-card text-bg-primary">
             <div class="card-body py-3">
-                <div class="small opacity-75">Всего</div>
+                <div class="small opacity-75">{{ request.state.t("common.total") }}</div>
                 <div class="fs-3 fw-bold">{{ stats.total }}</div>
             </div>
         </div>
@@ -48,10 +48,10 @@
             <div class="search-wrap">
                 <i class="bi bi-search"></i>
                 <input type="search" name="q" value="{{ q or '' }}" class="form-control form-control-sm"
-                       placeholder="Поиск: MAC, модель, IP…" autocomplete="off">
+                       placeholder="{{ request.state.t('phones.search_ph') }}" autocomplete="off">
             </div>
             <select name="status" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
-                <option value="">Все статусы</option>
+                <option value="">{{ request.state.t('common.all_statuses') }}</option>
                 {% for s in ['online','dnd','offline','unregistered'] %}
                 <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
                 {% endfor %}
@@ -59,13 +59,13 @@
             <input type="hidden" name="per_page" value="{{ pagination.per_page if pagination else 25 }}">
             <input type="hidden" name="sort" value="{{ sort or 'last_seen' }}">
             <input type="hidden" name="dir" value="{{ sort_dir or 'desc' }}">
-            <button type="submit" class="btn btn-sm btn-outline-secondary">Найти</button>
+            <button type="submit" class="btn btn-sm btn-outline-secondary">{{ request.state.t('common.find') }}</button>
             {% if q or status_filter %}
-            <a href="/phones/?per_page={{ pagination.per_page if pagination else 25 }}" class="btn btn-sm btn-link">Сброс</a>
+            <a href="/phones/?per_page={{ pagination.per_page if pagination else 25 }}" class="btn btn-sm btn-link">{{ request.state.t('common.reset') }}</a>
             {% endif %}
         </form>
         <a href="/phones/new" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-lg"></i> Добавить
+            <i class="bi bi-plus-lg"></i> {{ request.state.t('common.add') }}
         </a>
     </div>
     <div class="card-body p-0">
@@ -108,7 +108,7 @@
                                 {% if sort == 'last_seen' %}{{ '▲' if sort_dir == 'asc' else '▼' }}{% endif %}
                             </a>
                         </th>
-                        <th class="text-end">Действия</th>
+                        <th class="text-end">{{ request.state.t('common.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>

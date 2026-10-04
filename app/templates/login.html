@@ -1,77 +1,48 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="{{ request.state.lang or 'ru' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход — NCDC</title>
+    <title>{{ request.state.t('login.title') }} — {{ request.state.t.short }}</title>
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
     <link href="/static/css/bootstrap-icons.min.css" rel="stylesheet">
     <link href="/static/css/app.css" rel="stylesheet">
     <style>
-        body {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-        }
-        .login-card {
-            width: 100%;
-            max-width: 400px;
-            border: none;
-            border-radius: 0.75rem;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.35);
-        }
-        .login-brand {
-            text-align: center;
-            margin-bottom: 1.5rem;
-        }
-        .login-brand h1 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: #0f172a;
-            margin: 0;
-        }
-        .login-brand small {
-            color: #64748b;
-        }
+        body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+               background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+        .login-card { width: 100%; max-width: 400px; border: none; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+        .login-card .card-header { background: transparent; border: 0; padding-top: 2rem; text-align: center; }
+        .login-card h1 { font-size: 1.75rem; font-weight: 700; color: #1a1a2e; }
+        .login-card .brand-sub { font-size: 0.8rem; color: #6c757d; }
+        .lang-switch { position: absolute; top: 1rem; right: 1rem; }
     </style>
 </head>
 <body>
+    <div class="lang-switch">
+        <a href="{{ request.url.path }}?lang=ru" class="btn btn-sm {% if (request.state.lang or 'ru') == 'ru' %}btn-light{% else %}btn-outline-light{% endif %}">RU</a>
+        <a href="{{ request.url.path }}?lang=en" class="btn btn-sm {% if request.state.lang == 'en' %}btn-light{% else %}btn-outline-light{% endif %}">EN</a>
+    </div>
     <div class="card login-card">
-        <div class="card-body p-4 p-md-5">
-            <div class="login-brand">
-                <h1><i class="bi bi-telephone-forward me-2"></i>NCDC</h1>
-                <small>Network Configuration & Device Control</small>
-            </div>
-
+        <div class="card-header">
+            <h1><i class="bi bi-telephone-forward me-2"></i>{{ request.state.t.short }}</h1>
+            <div class="brand-sub">{{ request.state.t.full }}</div>
+        </div>
+        <div class="card-body px-4 pb-4">
             {% if error %}
-            <div class="alert alert-danger py-2" role="alert">
-                <i class="bi bi-exclamation-triangle me-1"></i>{{ error }}
-            </div>
+            <div class="alert alert-danger py-2">{{ error }}</div>
             {% endif %}
-
-            <form method="post" action="/login" autocomplete="on">
+            <form method="post" action="/login">
                 <input type="hidden" name="next" value="{{ next or '/' }}">
                 <div class="mb-3">
-                    <label class="form-label" for="username">Логин</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        <input type="text" class="form-control" id="username" name="username"
-                               value="{{ username or '' }}" required autofocus autocomplete="username">
-                    </div>
+                    <label class="form-label">{{ request.state.t('login.username') }}</label>
+                    <input type="text" name="username" class="form-control" required autofocus autocomplete="username"
+                           value="{{ username or '' }}">
                 </div>
-                <div class="mb-4">
-                    <label class="form-label" for="password">Пароль</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <input type="password" class="form-control" id="password" name="password"
-                               required autocomplete="current-password">
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">{{ request.state.t('login.password') }}</label>
+                    <input type="password" name="password" class="form-control" required autocomplete="current-password">
                 </div>
-                <button type="submit" class="btn btn-primary w-100 py-2">
-                    <i class="bi bi-box-arrow-in-right me-1"></i> Войти
-                </button>
+                <button type="submit" class="btn btn-primary w-100">{{ request.state.t('login.submit') }}</button>
             </form>
         </div>
     </div>

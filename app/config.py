@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         case_sensitive=True,
     )
 
-    APP_NAME: str = "NCDC"
+    APP_NAME: str = "КУСТ"  # UI brand; EN: NTDC
     APP_VERSION: str = "0.3.0"
     DEBUG: bool = False  # True включает SQL-echo — в лог попадут SIP-пароли
 

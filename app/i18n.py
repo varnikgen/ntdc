@@ -1,0 +1,117 @@
+"""Простая i18n: ru / en, выбор через cookie ncdc_lang или ?lang=."""
+
+from __future__ import annotations
+
+from typing import Any
+
+SUPPORTED = ("ru", "en")
+DEFAULT_LANG = "ru"
+COOKIE_NAME = "ncdc_lang"
+
+# short_name / full_name per language
+BRAND = {
+    "ru": {
+        "short": "КУСТ",
+        "full": "Конфигуратор устройств сетевой телефонии",
+    },
+    "en": {
+        "short": "NTDC",
+        "full": "Network Telephony Device Configurator",
+    },
+}
+
+# key -> {ru, en}
+MESSAGES: dict[str, dict[str, str]] = {
+    "nav.dashboard": {"ru": "Dashboard", "en": "Dashboard"},
+    "nav.devices": {"ru": "Устройства", "en": "Devices"},
+    "nav.device_list": {"ru": "Список устройств", "en": "Device list"},
+    "nav.accounts": {"ru": "Аккаунты", "en": "Accounts"},
+    "nav.sip_accounts": {"ru": "SIP-аккаунты", "en": "SIP accounts"},
+    "nav.config": {"ru": "Конфигурация", "en": "Configuration"},
+    "nav.global_config": {"ru": "Global Config", "en": "Global Config"},
+    "nav.models": {"ru": "Модели", "en": "Models"},
+    "nav.system": {"ru": "Система", "en": "System"},
+    "nav.users": {"ru": "Пользователи", "en": "Users"},
+    "nav.audit": {"ru": "Журнал аудита", "en": "Audit log"},
+    "nav.logout": {"ru": "Выйти", "en": "Log out"},
+    "nav.login": {"ru": "Войти", "en": "Sign in"},
+    "login.title": {"ru": "Вход", "en": "Sign in"},
+    "login.username": {"ru": "Имя пользователя", "en": "Username"},
+    "login.password": {"ru": "Пароль", "en": "Password"},
+    "login.submit": {"ru": "Войти", "en": "Sign in"},
+    "login.error": {"ru": "Неверный логин или пароль", "en": "Invalid username or password"},
+    "login.locked": {"ru": "Слишком много попыток. Попробуйте позже.", "en": "Too many attempts. Try again later."},
+    "common.search": {"ru": "Поиск", "en": "Search"},
+    "common.add": {"ru": "Добавить", "en": "Add"},
+    "common.save": {"ru": "Сохранить", "en": "Save"},
+    "common.cancel": {"ru": "Отмена", "en": "Cancel"},
+    "common.delete": {"ru": "Удалить", "en": "Delete"},
+    "common.edit": {"ru": "Редактировать", "en": "Edit"},
+    "common.actions": {"ru": "Действия", "en": "Actions"},
+    "common.reset": {"ru": "Сброс", "en": "Reset"},
+    "common.find": {"ru": "Найти", "en": "Search"},
+    "common.total": {"ru": "Всего", "en": "Total"},
+    "common.online": {"ru": "Online", "en": "Online"},
+    "common.offline": {"ru": "Offline", "en": "Offline"},
+    "common.all_statuses": {"ru": "Все статусы", "en": "All statuses"},
+    "phones.title": {"ru": "Список устройств", "en": "Device list"},
+    "phones.search_ph": {"ru": "Поиск: MAC, модель, IP…", "en": "Search: MAC, model, IP…"},
+    "phones.empty": {"ru": "Нет устройств. Добавьте вручную или включите AUTO_ENROLL.", "en": "No devices. Add manually or enable AUTO_ENROLL."},
+    "phones.none_found": {"ru": "Ничего не найдено по запросу", "en": "Nothing found for"},
+    "accounts.title": {"ru": "SIP-аккаунты", "en": "SIP accounts"},
+    "accounts.search_ph": {"ru": "Поиск: имя, username, сервер…", "en": "Search: name, username, server…"},
+    "accounts.empty": {"ru": "Нет аккаунтов. Нажмите «Добавить».", "en": "No accounts. Click Add."},
+    "users.title": {"ru": "Пользователи сервиса", "en": "Service users"},
+    "lang.ru": {"ru": "Русский", "en": "Russian"},
+    "lang.en": {"ru": "English", "en": "English"},
+    "pagination.shown": {"ru": "Показано", "en": "Showing"},
+    "pagination.of": {"ru": "из", "en": "of"},
+    "pagination.per_page": {"ru": "На стр.", "en": "Per page"},
+}
+
+
+def normalize_lang(lang: str | None) -> str:
+    if not lang:
+        return DEFAULT_LANG
+    lang = lang.strip().lower()[:2]
+    return lang if lang in SUPPORTED else DEFAULT_LANG
+
+
+def translate(key: str, lang: str | None = None, **kwargs: Any) -> str:
+    lang = normalize_lang(lang)
+    entry = MESSAGES.get(key)
+    if not entry:
+        return key
+    text = entry.get(lang) or entry.get(DEFAULT_LANG) or key
+    if kwargs:
+        try:
+            text = text.format(**kwargs)
+        except Exception:
+            pass
+    return text
+
+
+def brand_short(lang: str | None = None) -> str:
+    return BRAND[normalize_lang(lang)]["short"]
+
+
+def brand_full(lang: str | None = None) -> str:
+    return BRAND[normalize_lang(lang)]["full"]
+
+
+class Translator:
+    """Объект для шаблонов: {{ t('nav.users') }}, {{ t.short }}, {{ t.full }}."""
+
+    def __init__(self, lang: str):
+        self.lang = normalize_lang(lang)
+
+    def __call__(self, key: str, **kwargs: Any) -> str:
+        return translate(key, self.lang, **kwargs)
+
+    @property
+    def short(self) -> str:
+        return brand_short(self.lang)
+
+    @property
+    def full(self) -> str:
+        return brand_full(self.lang)

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from app.i18n import translate
 from app.middleware.auth import (
     authenticate,
     login_user,
@@ -82,7 +83,7 @@ async def login_submit(
             {
                 "request": request,
                 "next": next_url,
-                "error": "Неверный логин или пароль",
+                "error": translate("login.error", getattr(request.state, "lang", "ru")),
                 "username": username,
             },
             status_code=status.HTTP_401_UNAUTHORIZED,
