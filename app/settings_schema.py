@@ -1,5 +1,7 @@
-"""Схема UI Global Config: подписи, группы, типы полей.\n\nВынесено из routers/settings.py, чтобы роутер оставался про тонкий HTTP-слой.\n"""
+"""Схема UI Global Config: подписи, группы, типы полей.
 
+Вынесено из routers/settings.py.
+"""
 PARAM_LABELS = {
     "static.network.ip_address_mode": "IP Address Mode",
     "static.network.ipv6_enable": "Enable IPv6",
@@ -222,3 +224,121 @@ PASSWORD_PARAMS = {
     "ncdc.phone.admin_password",
     "ncdc.phone.user_password",
 }
+
+
+# --- i18n labels (technical key stays English under the field) ---
+
+PARAM_LABELS_RU = {
+    'action_url.call_established': 'URL: разговор установлен',
+    'action_url.call_missed': 'URL: пропущенный вызов',
+    'action_url.dnd_off': 'URL: DND выкл',
+    'action_url.dnd_on': 'URL: DND вкл',
+    'action_url.enable': 'Включить Action URL',
+    'action_url.incoming_call': 'URL: входящий вызов',
+    'action_url.limit_ip': 'Ограничение IP для Action URL',
+    'action_url.off_hook': 'URL: снята трубка',
+    'action_url.on_hook': 'URL: положена трубка',
+    'action_url.outgoing_call': 'URL: исходящий вызов',
+    'action_url.register_failed': 'URL: ошибка регистрации',
+    'action_url.registered': 'URL: зарегистрирован',
+    'action_url.registration_failed': 'URL: ошибка регистрации (legacy)',
+    'action_url.setup_complete': 'URL: настройка завершена (legacy)',
+    'action_url.setup_completed': 'URL: настройка завершена',
+    'action_url.show_msgbox': 'Показывать сообщение Action URL',
+    'action_url.unregistered': 'URL: не зарегистрирован',
+    'directory.edit_default_input_method': 'Метод ввода в каталоге',
+    'directory.search_default_input_method': 'Метод ввода поиска в каталоге',
+    'features.action_uri.expansion_module.enable': 'Action URI модуля расширения',
+    'features.action_uri.phone.enable': 'Action URI телефона',
+    'features.action_uri_limit_ip': 'Разрешённые IP для Action URI',
+    'features.config_dsskey_length': 'Длина подписи DSS-клавиш',
+    'features.dnd.allow': 'Разрешить DND',
+    'features.fwd.allow': 'Разрешить переадресацию',
+    'features.remote_phonebook.enable': 'Удалённая телефонная книга',
+    'features.show_action_uri_option': 'Показывать Action URI в меню',
+    'ldap.base': 'Base DN',
+    'ldap.call_in_lookup': 'Поиск при входящем вызове',
+    'ldap.customize_label': 'Подпись LDAP',
+    'ldap.display_name': 'Формат отображаемого имени',
+    'ldap.enable': 'Включить LDAP',
+    'ldap.host': 'Сервер LDAP',
+    'ldap.name_attr': 'Атрибуты имени',
+    'ldap.name_filter': 'Фильтр по имени',
+    'ldap.numb_attr': 'Атрибут номера',
+    'ldap.number_filter': 'Фильтр по номеру',
+    'ldap.password': 'Пароль LDAP',
+    'ldap.user': 'Пользователь LDAP',
+    'local_time.date_format': 'Формат даты',
+    'local_time.dhcp_time': 'Время по DHCP',
+    'local_time.summer_time': 'Летнее время',
+    'local_time.time_zone': 'Часовой пояс',
+    'local_time.time_zone_name': 'Имя часового пояса',
+    'ncdc.phone.admin_password': 'Пароль admin веб-UI телефона',
+    'ncdc.phone.user_password': 'Пароль user веб-UI телефона',
+    'phone_setting.backgrounds': 'Фоны экрана',
+    'phone_setting.custom_headset_mode_status': 'Режим гарнитуры',
+    'phone_setting.mute_power_led_flash_enable': 'Мигание LED при Mute',
+    'phone_setting.page_tip': 'Подсказки на экране',
+    'phone_setting.ring_type': 'Тип мелодии',
+    'static.auto_provision.custom.protect': 'Защита пользовательских настроек',
+    'static.auto_provision.password': 'Пароль провижининга',
+    'static.auto_provision.power_on': 'Провижининг при включении',
+    'static.auto_provision.repeat.minutes': 'Интервал повтора (мин)',
+    'static.auto_provision.server.url': 'URL сервера провижининга',
+    'static.auto_provision.username': 'Логин провижининга',
+    'static.auto_provision.weekly.enable': 'Еженедельный провижининг',
+    'static.network.802_1x.identity': '802.1X: идентификатор',
+    'static.network.802_1x.mode': '802.1X: режим',
+    'static.network.ip_address_mode': 'Режим IP-адреса',
+    'static.network.ipv6_enable': 'Включить IPv6',
+    'static.network.primary_dns': 'Основной DNS',
+    'static.network.secondary_dns': 'Дополнительный DNS',
+    'static.network.static_dns_enable': 'Использовать статический DNS',
+    'static.network.vlan.internet_port_enable': 'Включить VLAN',
+    'static.network.vlan.internet_port_priority': 'Приоритет VLAN (CoS)',
+    'static.network.vlan.internet_port_vid': 'ID VLAN',
+    'static.sys.local_log.retention.enable': 'Хранение локальных логов',
+    'static.syslog.level': 'Уровень syslog',
+    'voice.handfree.spk_vol': 'Громкость громкой связи',
+    'voice.handset.spk_vol': 'Громкость динамика трубки',
+    'voice.ring_vol': 'Громкость звонка',
+}
+
+GROUP_LABELS_RU = {
+    'Network': 'Сеть',
+    'LDAP': 'LDAP',
+    'Time': 'Время',
+    'Auto Provision': 'Провижининг',
+    'Phone Web UI': 'Веб-UI телефона',
+    'Action URI': 'Action URI',
+    'Action URL Events': 'События Action URL',
+    'Features': 'Функции',
+}
+
+
+def humanize_key(key: str) -> str:
+    """Грубое человекочитаемое имя из ключа cfg."""
+    if not key:
+        return key
+    tail = key.split(".")[-1].replace("_", " ")
+    # 802 1x -> 802.1X style bits left as-is from original
+    return tail[:1].upper() + tail[1:] if tail else key
+
+
+def param_label(key: str, lang: str = "ru") -> str:
+    lang = (lang or "ru")[:2].lower()
+    if lang == "ru":
+        if key in PARAM_LABELS_RU:
+            return PARAM_LABELS_RU[key]
+        if key in PARAM_LABELS:
+            # fallback EN known label if no RU yet
+            return PARAM_LABELS[key]
+        return humanize_key(key)
+    return PARAM_LABELS.get(key) or humanize_key(key)
+
+
+def group_label(name: str, lang: str = "ru") -> str:
+    lang = (lang or "ru")[:2].lower()
+    if lang == "ru":
+        return GROUP_LABELS_RU.get(name, name)
+    return name

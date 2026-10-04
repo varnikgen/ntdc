@@ -23,6 +23,8 @@ from app.settings_schema import (
     BOOLEAN_PARAMS,
     INT_PARAMS,
     PASSWORD_PARAMS,
+    param_label,
+    group_label,
 )
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -50,7 +52,7 @@ def normalize_value(param: str, value: str):
     return value
 
 
-def _grouped(settings: dict) -> dict:
+def _grouped(settings: dict, lang: str = "ru") -> dict:
     grouped = {}
     for group_name, params in PARAM_GROUPS.items():
         group_data = []
@@ -59,7 +61,7 @@ def _grouped(settings: dict) -> dict:
             group_data.append(
                 {
                     "key": param,
-                    "label": PARAM_LABELS.get(param, param),
+                    "label": param_label(param, lang),
                     "value": value,
                     "type": (
                         "password"
@@ -73,25 +75,32 @@ def _grouped(settings: dict) -> dict:
                     "options": SELECT_OPTIONS.get(param, {}),
                 }
             )
-        grouped[group_name] = group_data
+        grouped[group_label(group_name, lang)] = group_data
     return grouped
 
 
 @router.get("/global")
 async def global_config(request: Request, db: Session = Depends(get_db)):
+    lang = getattr(request.state, "lang", "ru") or "ru"
     global_cfg = db.query(GlobalConfig).first()
     settings_map = global_cfg.settings if global_cfg and global_cfg.settings else {}
-    grouped_settings = _grouped(settings_map)
+    grouped_settings = _grouped(settings_map, lang)
 
     known_params = set()
     for params in PARAM_GROUPS.values():
         known_params.update(params)
 
     custom_params = []
-    for key, value in settings_map.items():
+    for key, value in sorted(settings_map.items()):
         if key not in known_params:
             custom_params.append(
-                {"key": key, "label": key, "value": value, "type": "text", "options": {}}
+                {
+                    "key": key,
+                    "label": param_label(key, lang),
+                    "value": value,
+                    "type": "text",
+                    "options": {},
+                }
             )
 
     return request.app.state.templates.TemplateResponse(
