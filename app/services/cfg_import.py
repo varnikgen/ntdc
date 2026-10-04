@@ -18,7 +18,7 @@ from app.security import normalize_mac, detect_model_from_ua, KNOWN_MODELS
 
 logger = logging.getLogger("ncdc.cfg_import")
 
-LINEKEY_RE = re.compile(r"^linekey\.(\d+)\.(type|line|value|extension|label|enable)$")
+LINEKEY_RE = re.compile(r"^linekey\.(\d+)\.(\w+)$")
 ACCOUNT_RE = re.compile(
     r"^account\.(\d+)\.(enable|label|display_name|auth_name|user_name|password|"
     r"sip_server\.1\.(address|port|transport_type)|"
@@ -146,21 +146,27 @@ def find_or_create_account(db: Session, raw: dict) -> Account:
 def split_personal(parsed: dict, global_settings: dict):
     """Возвращает (custom_config, dss_keys). Account.* уже обработан отдельно."""
     custom = {}
-    linekeys: dict = {}
-
     for key, value in parsed.items():
-        if key.startswith(IMPORT_IGNORE_PREFIXES):
+        if key.startswith(IMPORT_IGNORE_PREFIXES) or LINEKEY_RE.match(key):
             continue
         g = global_settings.get(key)
         if g is not None and str(g) == str(value):
             continue
-
-        lk = LINEKEY_RE.match(key)
-        if lk:
-            n, field = int(lk.group(1)), lk.group(2)
-            linekeys.setdefault(n, {"line": n})[field] = value
-            continue
         custom[key] = value
+    return custom, extract_dss_keys(parsed)
+
+
+
+
+def extract_dss_keys(parsed: dict) -> list[dict]:
+    """linekey.N.* → список DSS для Account.dss_keys / phone.custom_dss_keys."""
+    linekeys: dict = {}
+    for key, value in parsed.items():
+        m = LINEKEY_RE.match(key)
+        if not m:
+            continue
+        n, field = int(m.group(1)), m.group(2)
+        linekeys.setdefault(n, {})[field] = value
 
     dss = []
     for n, f in sorted(linekeys.items()):
@@ -170,17 +176,33 @@ def split_personal(parsed: dict, global_settings: dict):
             ktype = 0
         if ktype == 0:
             continue
-        acc = f.get("line", "1")
+        # Yealink: linekey.N.line = номер SIP-линии (account.M)
+        acc_raw = f.get("line", "1")
+        try:
+            account = int(acc_raw)
+        except (TypeError, ValueError):
+            account = 1
         dss.append({
             "line": n,
             "type": ktype,
-            "account": int(acc) if str(acc).isdigit() else 1,  # это НОМЕР ЛИНИИ, не ID
-            "value": f.get("value", ""),
-            "extension": f.get("extension", ""),
-            "label": f.get("label", ""),
+            "account": account,
+            "value": f.get("value", "") or "",
+            "extension": f.get("extension", "") or "",
+            "label": f.get("label", "") or "",
         })
-    return custom, dss
+    return dss
 
+
+def apply_dss_to_account(db: Session, account_id: int | None, dss: list[dict]) -> bool:
+    """Пишет DSS на SIP-аккаунт. True если обновлён."""
+    if not account_id or not dss:
+        return False
+    acc = db.query(Account).filter(Account.id == account_id).first()
+    if not acc:
+        return False
+    acc.dss_keys = dss
+    db.add(acc)
+    return True
 
 def import_cfg_file(db: Session, filename: str, text: str) -> dict:
     mac = mac_from_filename(filename)
@@ -226,10 +248,16 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
         db.flush()
 
     phone.custom_config = custom
-    phone.custom_dss_keys = dss
-    phone.override_dss_keys = bool(dss)
     phone.primary_account_id = primary_id
     set_account_ids(db, phone, account_ids)
+    # DSS → на primary SIP-аккаунт; телефон наследует (без override)
+    dss_on_acc = apply_dss_to_account(db, primary_id, dss)
+    if dss and not dss_on_acc:
+        phone.custom_dss_keys = dss
+        phone.override_dss_keys = True
+    else:
+        phone.custom_dss_keys = None
+        phone.override_dss_keys = False
     resolved_model = resolve_model_name(db, None, filename, parsed)
     if resolved_model:
         phone.model_name = resolved_model
@@ -408,7 +436,9 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
                 accounts_imported += 1
 
         # Дифференцируем остаток против global (уже с promoted) и model
-        custom, dss = _diff_remainder(rem, global_settings, model_settings, parsed)
+        custom, _ = _diff_remainder(rem, global_settings, model_settings, parsed)
+        # linekey.* исключены из rem — DSS всегда из полного parsed
+        dss = extract_dss_keys(parsed)
 
         phone = db.query(Phone).filter(Phone.mac.ilike(mac)).first()
         created = phone is None
@@ -418,10 +448,15 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
             db.flush()
 
         phone.custom_config = custom
-        phone.custom_dss_keys = dss
-        phone.override_dss_keys = bool(dss)
         phone.primary_account_id = primary_id
         set_account_ids(db, phone, account_ids)
+        dss_on_acc = apply_dss_to_account(db, primary_id, dss)
+        if dss and not dss_on_acc:
+            phone.custom_dss_keys = dss
+            phone.override_dss_keys = True
+        else:
+            phone.custom_dss_keys = None
+            phone.override_dss_keys = False
         resolved_model = resolve_model_name(db, model_name, filename, parsed)
         if resolved_model:
             phone.model_name = resolved_model

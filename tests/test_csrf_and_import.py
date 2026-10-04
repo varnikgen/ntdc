@@ -20,3 +20,21 @@ def test_csrf_cookie_on_login_page(client):
     # cookie may be set by middleware on first response
     # at least page renders
     assert "password" in r.text.lower() or "парол" in r.text.lower()
+
+
+def test_extract_dss_keys():
+    from app.services.cfg_import import extract_dss_keys, parse_yealink_cfg
+    text = """
+linekey.1.type = 15
+linekey.1.line = 1
+linekey.1.label = Ext101
+linekey.2.type = 16
+linekey.2.line = 1
+linekey.2.value = 102
+linekey.2.label = Bob
+linekey.3.type = 0
+"""
+    dss = extract_dss_keys(parse_yealink_cfg(text))
+    assert len(dss) == 2
+    assert dss[0]["type"] == 15 and dss[0]["label"] == "Ext101"
+    assert dss[1]["type"] == 16 and dss[1]["value"] == "102"
