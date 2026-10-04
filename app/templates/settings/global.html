@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Global Configuration - NCDC{% endblock %}
+{% block title %}{{ request.state.t("settings.title") }} — {{ request.state.t.short }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-gear-wide-connected"></i> Global Configuration</h2>
+    <h2><i class="bi bi-gear-wide-connected"></i> {{ request.state.t("settings.title") }}</h2>
 </div>
 
 <form id="globalConfigForm">
@@ -23,7 +23,7 @@
                 <div class="col-md-7">
                     {% if param.type == "select" %}
                     <select name="param_{{ param.key }}" class="form-select">
-                        <option value="">-- Not Set --</option>
+                        <option value="">—</option>
                         {% for opt_val, opt_label in param.options.items() %}
                         <option value="{{ opt_val }}" {% if param.value == opt_val or param.value|string == opt_val %}selected{% endif %}>
                             {{ opt_label }}
@@ -40,18 +40,18 @@
                                value="1"
                                {% if param.value == 1 or param.value == "1" or param.value == true %}checked{% endif %}>
                         <label class="form-check-label" for="switch_{{ param.key | replace('.', '_') }}">
-                            {% if param.value == 1 or param.value == "1" or param.value == true %}Enabled{% else %}Disabled{% endif %}
+                            {% if param.value == 1 or param.value == "1" or param.value == true %}{{ request.state.t("settings.enabled") }}{% else %}{{ request.state.t("settings.disabled") }}{% endif %}
                         </label>
                     </div>
                     {% elif param.type == "password" %}
                     <input type="password" name="param_{{ param.key }}"
                            class="form-control" autocomplete="new-password"
-                           placeholder="{% if param.value %}•••••••• (leave blank to keep){% else %}Enter value...{% endif %}">
+                           placeholder="{% if param.value %}••••••••{% else %}{% endif %}">
                     {% else %}
                     <input type="text" name="param_{{ param.key }}"
                            class="form-control"
                            value="{{ param.value }}"
-                           placeholder="Enter value...">
+                           placeholder="">
                     {% endif %}
                 </div>
                 <div class="col-md-1 text-end">
@@ -72,7 +72,7 @@
     {% if custom_params %}
     <div class="card mb-4">
         <div class="card-header">
-            <i class="bi bi-sliders"></i> Custom Parameters
+            <i class="bi bi-sliders"></i> {{ request.state.t("settings.custom") }}
         </div>
         <div class="card-body">
             {% for param in custom_params %}
@@ -103,7 +103,7 @@
 
 <div class="card mt-4">
     <div class="card-header">
-        <h5>Auto-Enroll Control</h5>
+        <h5 class="mb-0">{{ request.state.t("settings.auto_enroll") }}</h5>
     </div>
     <div class="card-body">
         <div id="autoEnrollStatus">
@@ -112,13 +112,13 @@
         
         <div class="mt-3">
             <button class="btn btn-success" onclick="enableAutoEnroll(30)">
-                Enable Auto-Enroll for 30 minutes
+                {{ request.state.t("settings.auto_enroll_30") }}
             </button>
             <button class="btn btn-warning" onclick="enableAutoEnroll(60)">
-                Enable for 1 hour
+                {{ request.state.t("settings.auto_enroll_60") }}
             </button>
             <button class="btn btn-danger" onclick="disableAutoEnroll()">
-                Disable Auto-Enroll
+                {{ request.state.t("settings.auto_enroll_off") }}
             </button>
         </div>
     </div>
@@ -126,18 +126,15 @@
 
 <div class="card mt-4 border-success">
     <div class="card-header bg-success text-white">
-        <h5 class="mb-0">📥 Импорт конфигов Yealink (файлы *-all.cfg)</h5>
+        <h5 class="mb-0">{{ request.state.t("settings.import_title") }}</h5>
     </div>
     <div class="card-body">
-        <p class="text-muted">Загрузите файлы, экспортированные скриптом <code>yealink_bulk_export.py</code>.
-        Сервис извлечёт MAC из имени файла, создаст/найдёт SIP-аккаунты,
-        уберёт совпадающее с Global Config и настройками модели,
-        а одинаковое во всех файлах при желании перенесёт в Global Config.</p>
+        <p class="text-muted">{{ request.state.t("settings.import_help") }}</p>
 
         <input type="file" id="importFiles" class="form-control" multiple accept=".cfg">
 
         <select id="importModel" class="form-select mt-2">
-            <option value="">— Авто (из имени файла / содержимого cfg) —</option>
+            <option value="">{{ request.state.t("settings.import_model_auto") }}</option>
             {% for m in models %}
             <option value="{{ m.name }}">{{ m.name }}</option>
             {% endfor %}
@@ -146,12 +143,12 @@
         <div class="form-check mt-2">
             <input class="form-check-input" type="checkbox" id="importPromote" checked>
             <label class="form-check-label" for="importPromote">
-                Перенести параметры, одинаковые во всех файлах, в Global Config
+                {{ request.state.t("settings.import_promote") }}
             </label>
         </div>
 
         <button type="button" class="btn btn-success mt-2" id="importBtn" onclick="uploadConfigs()">
-            Импортировать
+            {{ request.state.t("settings.import_btn") }}
         </button>
         <div id="importResult" class="mt-3"></div>
     </div>
@@ -160,15 +157,26 @@
 
 {% block action_bar %}
 <div class="action-bar">
-    <div class="action-bar-left">Global Config</div>
-    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">Отмена</button>
-    <button type="submit" form="globalConfigForm" class="btn btn-primary">
-        <i class="bi bi-save"></i> Сохранить
+    <div class="action-bar-left">{{ request.state.t("settings.title") }}</div>
+    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">{{ request.state.t("common.cancel") }}</button>
+    <button type="submit" form="globalConfigForm" class="btn btn-primary">{{ request.state.t("common.save") }}<i class="bi bi-save"></i> Сохранить
     </button>
 </div>
 {% endblock %}
 
 {% block scripts %}
+
+<script>
+window.NCDC_I18N = {
+  autoOn: {{ request.state.t("settings.auto_enroll_on")|tojson }},
+  autoOff: {{ request.state.t("settings.auto_enroll_disabled")|tojson }},
+  until: {{ request.state.t("settings.until")|tojson }},
+  remaining: {{ request.state.t("settings.remaining")|tojson }},
+  enabled: {{ request.state.t("settings.enabled")|tojson }},
+  disabled: {{ request.state.t("settings.disabled")|tojson }},
+};
+</script>
+
 <script>
 function clearParam(key) {
     const input = document.querySelector(`input[name="param_${key}"]:not([type="hidden"]), select[name="param_${key}"]`);
@@ -185,7 +193,7 @@ function clearParam(key) {
 document.querySelectorAll('.form-check-input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', function() {
         const label = this.nextElementSibling;
-        if (label) label.textContent = this.checked ? 'Enabled' : 'Disabled';
+        if (label) label.textContent = this.checked ? ((window.NCDC_I18N||{}).enabled||'Enabled') : ((window.NCDC_I18N||{}).disabled||'Disabled');
     });
 });
 
@@ -215,16 +223,15 @@ async function checkAutoEnrollStatus() {
     if (data.enabled) {
         statusDiv.innerHTML = `
             <div class="alert alert-success">
-                <strong>Auto-Enroll is ENABLED</strong><br>
-                Until: ${data.until}<br>
-                Remaining: ${data.remaining_minutes} minutes
+                <strong>${(window.NCDC_I18N||{}).autoOn||'ENABLED'}</strong><br>
+                ${(window.NCDC_I18N||{}).until||'Until'}: ${data.until}<br>
+                ${(window.NCDC_I18N||{}).remaining||'Remaining'}: ${data.remaining_minutes}
             </div>
         `;
     } else {
         statusDiv.innerHTML = `
             <div class="alert alert-secondary">
-                <strong>Auto-Enroll is DISABLED</strong><br>
-                New phones will not be automatically added.
+                <strong>${(window.NCDC_I18N||{}).autoOff||'DISABLED'}</strong>
             </div>
         `;
     }

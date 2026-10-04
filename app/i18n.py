@@ -22,13 +22,13 @@ BRAND = {
 
 # key -> {ru, en}
 MESSAGES: dict[str, dict[str, str]] = {
-    "nav.dashboard": {"ru": "Dashboard", "en": "Dashboard"},
+    "nav.dashboard": {"ru": "Панель", "en": "Dashboard"},
     "nav.devices": {"ru": "Устройства", "en": "Devices"},
     "nav.device_list": {"ru": "Список устройств", "en": "Device list"},
     "nav.accounts": {"ru": "Аккаунты", "en": "Accounts"},
     "nav.sip_accounts": {"ru": "SIP-аккаунты", "en": "SIP accounts"},
     "nav.config": {"ru": "Конфигурация", "en": "Configuration"},
-    "nav.global_config": {"ru": "Global Config", "en": "Global Config"},
+    "nav.global_config": {"ru": "Глобальные настройки", "en": "Global Config"},
     "nav.models": {"ru": "Модели", "en": "Models"},
     "nav.system": {"ru": "Система", "en": "System"},
     "nav.users": {"ru": "Пользователи", "en": "Users"},
@@ -67,7 +67,33 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pagination.shown": {"ru": "Показано", "en": "Showing"},
     "pagination.of": {"ru": "из", "en": "of"},
     "pagination.per_page": {"ru": "На стр.", "en": "Per page"},
+    "settings.title": {"ru": "Глобальные настройки", "en": "Global Configuration"},
+    "settings.custom": {"ru": "Дополнительные параметры", "en": "Custom parameters"},
+    "settings.auto_enroll": {"ru": "Автодобавление устройств", "en": "Auto-Enroll"},
+    "settings.auto_enroll_30": {"ru": "Включить на 30 минут", "en": "Enable for 30 minutes"},
+    "settings.auto_enroll_60": {"ru": "Включить на 60 минут", "en": "Enable for 60 minutes"},
+    "settings.auto_enroll_off": {"ru": "Выключить", "en": "Disable Auto-Enroll"},
+    "settings.auto_enroll_on": {"ru": "Автодобавление ВКЛЮЧЕНО", "en": "Auto-Enroll is ENABLED"},
+    "settings.auto_enroll_disabled": {"ru": "Автодобавление ВЫКЛЮЧЕНО", "en": "Auto-Enroll is DISABLED"},
+    "settings.until": {"ru": "До", "en": "Until"},
+    "settings.remaining": {"ru": "Осталось (мин)", "en": "Remaining (min)"},
+    "settings.import_title": {"ru": "Импорт конфигураций", "en": "Import configurations"},
+    "settings.import_help": {
+        "ru": "Загрузите файлы, экспортированные скриптом yealink_bulk_export.py. Сервис извлечёт MAC из имени файла, создаст/найдёт SIP-аккаунты и DSS, уберёт совпадающее с Global Config и моделью.",
+        "en": "Upload files exported by yealink_bulk_export.py. The service extracts MAC from the filename, creates/finds SIP accounts and DSS keys, and subtracts keys matching Global Config and model defaults.",
+    },
+    "settings.import_model_auto": {"ru": "— Авто (из имени файла / содержимого cfg) —", "en": "— Auto (from filename / cfg content) —"},
+    "settings.import_promote": {
+        "ru": "Перенести параметры, одинаковые во всех файлах, в глобальные настройки",
+        "en": "Promote keys common to all files into Global Config",
+    },
+    "settings.import_btn": {"ru": "Импортировать", "en": "Import"},
+    "settings.enabled": {"ru": "Вкл", "en": "Enabled"},
+    "settings.disabled": {"ru": "Выкл", "en": "Disabled"},
+    "common.remove": {"ru": "Удалить", "en": "Remove"},
+
 }
+
 
 
 def normalize_lang(lang: str | None) -> str:
