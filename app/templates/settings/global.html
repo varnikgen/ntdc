@@ -137,7 +137,7 @@
         <input type="file" id="importFiles" class="form-control" multiple accept=".cfg">
 
         <select id="importModel" class="form-select mt-2">
-            <option value="">— Модель не указана (определится при первом запросе телефона) —</option>
+            <option value="">— Авто (из имени файла / содержимого cfg) —</option>
             {% for m in models %}
             <option value="{{ m.name }}">{{ m.name }}</option>
             {% endfor %}
@@ -280,6 +280,7 @@ async function uploadConfigs() {
                 `<tr class="${r.ok ? '' : 'table-danger'}">
                     <td>${r.file}</td>
                     <td><code>${r.mac || '—'}</code></td>
+                    <td>${r.model || '—'}</td>
                     <td>${r.ok ? (r.created ? 'создан' : 'обновлён') : (r.error || 'ошибка')}</td>
                     <td>${r.custom_keys ?? ''}</td>
                     <td>${r.dss_keys ?? ''}</td>
@@ -301,7 +302,7 @@ async function uploadConfigs() {
             res.innerHTML = `
                 <div class="alert alert-success">Импортировано ${data.imported} из ${data.total}</div>
                 <table class="table table-sm table-bordered">
-                    <thead><tr><th>Файл</th><th>MAC</th><th>Результат</th><th>Ключей</th><th>DSS</th><th>Аккаунтов</th></tr></thead>
+                    <thead><tr><th>Файл</th><th>MAC</th><th>Модель</th><th>Результат</th><th>Ключей</th><th>DSS</th><th>Аккаунтов</th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>${extra}`;
         } else {

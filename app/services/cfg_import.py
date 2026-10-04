@@ -13,7 +13,7 @@ import re
 from sqlalchemy.orm import Session
 
 from app.models import Phone, Account, GlobalConfig, PhoneModel
-from app.security import normalize_mac
+from app.security import normalize_mac, detect_model_from_ua, KNOWN_MODELS
 
 logger = logging.getLogger("ncdc.cfg_import")
 
@@ -204,13 +204,16 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
     phone.override_dss_keys = bool(dss)
     phone.account_ids = account_ids
     phone.primary_account_id = primary_id
+    resolved_model = resolve_model_name(db, None, filename, parsed)
+    if resolved_model:
+        phone.model_name = resolved_model
 
     db.commit()
     db.refresh(phone)
 
     logger.info(
-        "Imported %s: mac=%s created=%s custom=%d dss=%d accounts=%d",
-        filename, mac, created, len(custom), len(dss), accounts_imported
+        "Imported %s: mac=%s created=%s custom=%d dss=%d accounts=%d model=%s",
+        filename, mac, created, len(custom), len(dss), accounts_imported, phone.model_name,
     )
     return {
         "file": filename, "ok": True, "mac": mac,
@@ -218,7 +221,77 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
         "custom_keys": len(custom),
         "dss_keys": len(dss),
         "accounts": accounts_imported,
+        "model": phone.model_name,
     }
+
+
+def detect_model_from_filename(filename: str) -> str | None:
+    """T46U_001565....cfg / 001565...._T46U.cfg / SIP-T46U-....cfg"""
+    if not filename:
+        return None
+    name = filename.rsplit("/", 1)[-1]
+    name_upper = name.upper()
+    for model in sorted(KNOWN_MODELS, key=len, reverse=True):
+        if model.upper() in name_upper:
+            return model.upper()
+    # общий шаблон SIP-T46U / T46U
+    m = re.search(r"(?:SIP[-_])?([A-Z]?T\d{2}[A-Z]?\d?[A-Z]?|W\d{2}[A-Z]?|CP\d{3}|VP[-_]?T?\d{2}[A-Z]?)", name_upper)
+    if m:
+        return m.group(1).replace("_", "-")
+    return None
+
+
+def detect_model_from_cfg(parsed: dict) -> str | None:
+    """Ищем модель в значениях cfg (product name, firmware path, comments-as-keys)."""
+    if not parsed:
+        return None
+    # Склеиваем несколько характерных полей + все значения (ограниченно)
+    candidates = []
+    for key in (
+        "phone_setting.product_name",
+        "static.auto_provision.custom_protect.pn",
+        "firmware.url",
+        "static.firmware.url",
+        "wui.product_name",
+    ):
+        if key in parsed and parsed[key]:
+            candidates.append(str(parsed[key]))
+    # также пробуем весь текст значений (короткий скан)
+    blob = " ".join(candidates)
+    if not blob:
+        # fallback: первые 50 значений
+        blob = " ".join(str(v) for v in list(parsed.values())[:50] if v)
+    found = detect_model_from_ua(blob)
+    if found:
+        return found
+    blob_u = blob.upper()
+    for model in sorted(KNOWN_MODELS, key=len, reverse=True):
+        if model.upper() in blob_u:
+            return model.upper()
+    return None
+
+
+def resolve_model_name(
+    db: Session,
+    explicit: str | None,
+    filename: str,
+    parsed: dict,
+) -> str | None:
+    """Явная модель из формы → имя файла → содержимое cfg. Создаёт PhoneModel при необходимости."""
+    model = (explicit or "").strip().upper() or None
+    if not model:
+        model = detect_model_from_filename(filename)
+    if not model:
+        model = detect_model_from_cfg(parsed)
+    if not model:
+        return None
+    # убедимся, что модель есть в справочнике
+    row = db.query(PhoneModel).filter(PhoneModel.name == model).first()
+    if not row:
+        db.add(PhoneModel(name=model))
+        db.flush()
+        logger.info("Auto-created PhoneModel %s during import", model)
+    return model
 
 def import_batch(db: Session, files: list, model_name: str | None, promote_common: bool) -> dict:
     """Пакетный импорт с продвижением общих ключей в Global Config.
@@ -312,8 +385,11 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
         phone.override_dss_keys = bool(dss)
         phone.account_ids = account_ids
         phone.primary_account_id = primary_id
-        if model_name:
-            phone.model_name = model_name
+        resolved_model = resolve_model_name(db, model_name, filename, parsed)
+        if resolved_model:
+            phone.model_name = resolved_model
+        elif not phone.model_name:
+            phone.model_name = None
 
         db.commit()
         db.refresh(phone)
@@ -321,6 +397,7 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
             "file": filename, "ok": True, "mac": mac, "created": created,
             "custom_keys": len(custom), "dss_keys": len(dss),
             "accounts": accounts_imported,
+            "model": phone.model_name,
         })
 
     ok = sum(1 for r in report if r.get("ok"))
