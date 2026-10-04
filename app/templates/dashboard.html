@@ -50,7 +50,9 @@
                 <a href="/phones" class="btn btn-outline-primary btn-sm"><i class="bi bi-telephone"></i> Устройства</a>
                 <a href="/phones/new" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> Добавить устройство</a>
                 <a href="/accounts" class="btn btn-outline-primary btn-sm"><i class="bi bi-person-badge"></i> Аккаунты</a>
+                {% if (request.state.admin_role or 'admin') == 'admin' %}
                 <a href="/settings/global" class="btn btn-outline-secondary btn-sm"><i class="bi bi-gear"></i> Global Config</a>
+                {% endif %}
             </div>
         </div>
     </div>

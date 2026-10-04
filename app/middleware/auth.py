@@ -31,7 +31,15 @@ ADMIN_EXCLUDED_PREFIXES = (
     "/logout",
 )
 
+# Полный доступ — только admin.
+# operator / viewer — только устройства и аккаунты (+ дашборд).
 ADMIN_ONLY_PREFIXES = ("/users",)
+
+OPERATOR_ALLOWED_PREFIXES = (
+    "/",          # dashboard (точное совпадение ниже)
+    "/phones",
+    "/accounts",
+)
 
 SESSION_USER_KEY = "admin_user"
 SESSION_ROLE_KEY = "admin_role"
@@ -140,10 +148,11 @@ def logout_user(request: Request) -> None:
 
 
 def session_identity(request: Request) -> tuple[str, str] | None:
-    user = request.session.get(SESSION_USER_KEY)
-    role = request.session.get(SESSION_ROLE_KEY)
+    # SessionMiddleware должен стоять снаружи auth; защищаемся на всякий случай
     if "session" not in request.scope:
         return None
+    user = request.session.get(SESSION_USER_KEY)
+    role = request.session.get(SESSION_ROLE_KEY)
     if user and role:
         return str(user), str(role)
     return None
@@ -186,9 +195,23 @@ async def auth_middleware(request: Request, call_next):
     request.state.admin_user = auth_user
     request.state.admin_role = role
 
+    # --- Role ACL ---
+    if role == "admin":
+        return await call_next(request)
+
+    # admin-only areas
     if any(path.startswith(prefix) for prefix in ADMIN_ONLY_PREFIXES):
-        if role != "admin":
-            return _forbidden("Admin role required")
+        return _forbidden("Admin role required")
+
+    # operator / viewer: only phones, accounts, dashboard
+    if role in ("operator", "viewer"):
+        allowed = False
+        if path == "/" or path == "":
+            allowed = True
+        elif any(path == pfx or path.startswith(pfx + "/") for pfx in OPERATOR_ALLOWED_PREFIXES if pfx != "/"):
+            allowed = True
+        if not allowed:
+            return _forbidden("Access denied for role '%s'" % role)
 
     if role == "viewer" and request.method.upper() not in ("GET", "HEAD", "OPTIONS"):
         return _forbidden("Viewer role is read-only")

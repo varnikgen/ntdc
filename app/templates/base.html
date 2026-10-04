@@ -17,6 +17,7 @@
                 <small>v{{ request.app.version }}</small>
             </div>
             <nav class="sidebar-nav">
+                {% set role = request.state.admin_role or 'admin' %}
                 <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
@@ -28,6 +29,7 @@
                 <a href="/accounts" class="{% if request.url.path.startswith('/accounts') %}active{% endif %}">
                     <i class="bi bi-person-badge"></i> SIP-аккаунты
                 </a>
+                {% if role == 'admin' %}
                 <div class="nav-header">Конфигурация</div>
                 <a href="/settings/global" class="{% if request.url.path.startswith('/settings') %}active{% endif %}">
                     <i class="bi bi-gear"></i> Global Config
@@ -42,6 +44,7 @@
                 <a href="/audit" class="{% if request.url.path.startswith('/audit') %}active{% endif %}">
                     <i class="bi bi-journal-text"></i> Журнал аудита
                 </a>
+                {% endif %}
             </nav>
             <div class="sidebar-footer">
                 <div class="d-flex align-items-center justify-content-between gap-2">
