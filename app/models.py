@@ -83,6 +83,16 @@ class Phone(Base):
     )
 
 
+
+class PhoneAccount(Base):
+    """Линия SIP на телефоне: line_no 1 → account.1.* в cfg Yealink."""
+    __tablename__ = "phone_accounts"
+
+    phone_id = Column(Integer, ForeignKey("phones.id", ondelete="CASCADE"), primary_key=True)
+    line_no = Column(Integer, primary_key=True)  # 1-based
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+
+
 class GlobalConfig(Base):
     """Единственная строка: словарь ключей для y000000000000.cfg."""
     __tablename__ = "global_config"

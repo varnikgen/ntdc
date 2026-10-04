@@ -74,3 +74,18 @@ def run_migrations() -> None:
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS ix_phones_last_seen ON phones (last_seen)"
         ))
+        conn.execute(text(
+            """
+            CREATE TABLE IF NOT EXISTS phone_accounts (
+                phone_id INTEGER NOT NULL,
+                line_no INTEGER NOT NULL,
+                account_id INTEGER NOT NULL,
+                PRIMARY KEY (phone_id, line_no),
+                FOREIGN KEY(phone_id) REFERENCES phones (id) ON DELETE CASCADE,
+                FOREIGN KEY(account_id) REFERENCES accounts (id) ON DELETE CASCADE
+            )
+            """
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_phone_accounts_account_id ON phone_accounts (account_id)"
+        ))

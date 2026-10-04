@@ -51,6 +51,16 @@ async def lifespan(app: FastAPI):
     os.makedirs("data", exist_ok=True)
     Base.metadata.create_all(bind=engine)
     run_migrations()
+    from app.phone_accounts import migrate_json_to_table
+    from app.database import SessionLocal as _SL
+    _db = _SL()
+    try:
+        n = migrate_json_to_table(_db)
+        if n:
+            import logging
+            logging.getLogger("ncdc").info("Migrated account_ids for %s phones", n)
+    finally:
+        _db.close()
     db = SessionLocal()
     try:
         seed_global_config(db)
@@ -84,8 +94,11 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Порядок: последний зарегистрированный middleware обрабатывает запрос первым.
-# Session → Auth → CSRF.
+# add_middleware вставляет в начало стека: последний вызов = самый внешний слой.
+# Нужно: Session (outer) → Auth → CSRF → app
+# поэтому SessionMiddleware регистрируем ПОСЛЕДНИМ.
+app.middleware("http")(csrf_middleware)
+app.middleware("http")(auth_middleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
@@ -93,17 +106,6 @@ app.add_middleware(
     max_age=60 * 60 * 24 * 7,  # 7 дней
     same_site="lax",
     https_only=False,  # True только если весь доступ строго по HTTPS
-)
-# Session (outer) → Auth → CSRF → app
-app.middleware("http")(csrf_middleware)
-app.middleware("http")(auth_middleware)
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=settings.SECRET_KEY,
-    session_cookie="ncdc_session",
-    max_age=60 * 60 * 24 * 7,
-    same_site="lax",
-    https_only=False,
 )
 
 app.include_router(provisioning.router)

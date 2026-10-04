@@ -44,15 +44,23 @@
 
 <div class="card">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
-        <form method="get" action="/phones/" class="d-flex align-items-center gap-2 mb-0">
+        <form method="get" action="/phones/" class="d-flex flex-wrap align-items-center gap-2 mb-0">
             <div class="search-wrap">
                 <i class="bi bi-search"></i>
                 <input type="search" name="q" value="{{ q or '' }}" class="form-control form-control-sm"
-                       placeholder="Поиск: MAC, модель, IP, статус…" autocomplete="off">
+                       placeholder="Поиск: MAC, модель, IP…" autocomplete="off">
             </div>
+            <select name="status" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+                <option value="">Все статусы</option>
+                {% for s in ['online','dnd','offline','unregistered'] %}
+                <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
             <input type="hidden" name="per_page" value="{{ pagination.per_page if pagination else 25 }}">
+            <input type="hidden" name="sort" value="{{ sort or 'last_seen' }}">
+            <input type="hidden" name="dir" value="{{ sort_dir or 'desc' }}">
             <button type="submit" class="btn btn-sm btn-outline-secondary">Найти</button>
-            {% if q %}
+            {% if q or status_filter %}
             <a href="/phones/?per_page={{ pagination.per_page if pagination else 25 }}" class="btn btn-sm btn-link">Сброс</a>
             {% endif %}
         </form>
@@ -65,11 +73,41 @@
             <table class="table table-hover align-middle mb-0 ncdc-sortable" id="phonesTable">
                 <thead class="table-light">
                     <tr>
-                        <th data-sort="0">MAC</th>
-                        <th data-sort="1">Модель</th>
-                        <th data-sort="2" data-sort-type="ip">IP</th>
-                        <th data-sort="3">Статус</th>
-                        <th data-sort="4">Last Seen</th>
+                        <th>
+                            <a href="?q={{ q or '' }}&status={{ status_filter or '' }}&sort=mac&dir={{ 'asc' if sort == 'mac' and sort_dir == 'desc' else 'desc' }}&per_page={{ pagination.per_page if pagination else 25 }}"
+                               class="text-decoration-none text-body">
+                                MAC
+                                {% if sort == 'mac' %}{{ '▲' if sort_dir == 'asc' else '▼' }}{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?q={{ q or '' }}&status={{ status_filter or '' }}&sort=model&dir={{ 'asc' if sort == 'model' and sort_dir == 'desc' else 'desc' }}&per_page={{ pagination.per_page if pagination else 25 }}"
+                               class="text-decoration-none text-body">
+                                Модель
+                                {% if sort == 'model' %}{{ '▲' if sort_dir == 'asc' else '▼' }}{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?q={{ q or '' }}&status={{ status_filter or '' }}&sort=ip&dir={{ 'asc' if sort == 'ip' and sort_dir == 'desc' else 'desc' }}&per_page={{ pagination.per_page if pagination else 25 }}"
+                               class="text-decoration-none text-body">
+                                IP
+                                {% if sort == 'ip' %}{{ '▲' if sort_dir == 'asc' else '▼' }}{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?q={{ q or '' }}&status={{ status_filter or '' }}&sort=status&dir={{ 'asc' if sort == 'status' and sort_dir == 'desc' else 'desc' }}&per_page={{ pagination.per_page if pagination else 25 }}"
+                               class="text-decoration-none text-body">
+                                Статус
+                                {% if sort == 'status' %}{{ '▲' if sort_dir == 'asc' else '▼' }}{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?q={{ q or '' }}&status={{ status_filter or '' }}&sort=last_seen&dir={{ 'asc' if sort == 'last_seen' and sort_dir == 'desc' else 'desc' }}&per_page={{ pagination.per_page if pagination else 25 }}"
+                               class="text-decoration-none text-body">
+                                Last Seen
+                                {% if sort == 'last_seen' %}{{ '▲' if sort_dir == 'asc' else '▼' }}{% endif %}
+                            </a>
+                        </th>
                         <th class="text-end">Действия</th>
                     </tr>
                 </thead>

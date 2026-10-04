@@ -21,32 +21,9 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
 def _detach_account_from_phones(db: Session, account_id: int) -> None:
-    """Снимает аккаунт с линий. Если он был primary — берём следующий из списка."""
-    from sqlalchemy import cast, String, or_
+    from app.phone_accounts import detach_account
+    detach_account(db, account_id)
 
-    # SQLite JSON: сужаем выборку LIKE + primary_account_id, точная проверка в Python
-    id_str = str(account_id)
-    candidates = (
-        db.query(Phone)
-        .filter(
-            or_(
-                Phone.primary_account_id == account_id,
-                cast(Phone.account_ids, String).like(f"%{id_str}%"),
-            )
-        )
-        .all()
-    )
-    for phone in candidates:
-        changed = False
-        ids = [int(i) for i in (phone.account_ids or []) if i is not None]
-        if account_id in ids:
-            phone.account_ids = [i for i in ids if i != account_id]
-            changed = True
-        if phone.primary_account_id == account_id:
-            phone.primary_account_id = phone.account_ids[0] if phone.account_ids else None
-            changed = True
-        if changed:
-            db.add(phone)
 
 
 @router.get("/")

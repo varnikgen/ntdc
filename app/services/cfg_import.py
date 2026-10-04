@@ -13,6 +13,7 @@ import re
 from sqlalchemy.orm import Session
 
 from app.models import Phone, Account, GlobalConfig, PhoneModel
+from app.phone_accounts import set_account_ids
 from app.security import normalize_mac, detect_model_from_ua, KNOWN_MODELS
 
 logger = logging.getLogger("ncdc.cfg_import")
@@ -222,12 +223,13 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
     if created:
         phone = Phone(mac=mac, status="unregistered")
         db.add(phone)
+        db.flush()
 
     phone.custom_config = custom
     phone.custom_dss_keys = dss
     phone.override_dss_keys = bool(dss)
-    phone.account_ids = account_ids
     phone.primary_account_id = primary_id
+    set_account_ids(db, phone, account_ids)
     resolved_model = resolve_model_name(db, None, filename, parsed)
     if resolved_model:
         phone.model_name = resolved_model
@@ -413,12 +415,13 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
         if created:
             phone = Phone(mac=mac, status="unregistered")
             db.add(phone)
+            db.flush()
 
         phone.custom_config = custom
         phone.custom_dss_keys = dss
         phone.override_dss_keys = bool(dss)
-        phone.account_ids = account_ids
         phone.primary_account_id = primary_id
+        set_account_ids(db, phone, account_ids)
         resolved_model = resolve_model_name(db, model_name, filename, parsed)
         if resolved_model:
             phone.model_name = resolved_model

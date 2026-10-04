@@ -8,6 +8,7 @@ import logging
 from app.config import settings
 from app.models import Phone, Account, PhoneModel, GlobalConfig
 from app.security import normalize_mac
+from app.phone_accounts import get_account_ids
 from app.services.linekeys import render_linekeys_block
 
 logger = logging.getLogger("ncdc.config_builder")
@@ -39,10 +40,9 @@ def build_phone_config(db, mac: str) -> dict:
         },
     }
 
-    # Один IN-запрос вместо N+1 по account_ids
+    # Один IN-запрос вместо N+1
     accounts_data = []
-    acc_ids = phone.account_ids if isinstance(phone.account_ids, list) else []
-    acc_ids = [int(x) for x in acc_ids if x is not None]
+    acc_ids = get_account_ids(db, phone)
     by_id = {}
     if acc_ids:
         rows = db.query(Account).filter(Account.id.in_(acc_ids)).all()

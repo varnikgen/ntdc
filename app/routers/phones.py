@@ -15,6 +15,7 @@ import logging
 from app.database import get_db
 from app.pagination import parse_page_args, paginate, page_url, ALLOWED_PER_PAGE
 from app.formutil import parse_json_field
+from app.phone_accounts import get_account_ids, set_account_ids
 from app.models import Phone, Account, PhoneModel
 from app.security import normalize_mac
 from app.phone_ip import is_phone_ip, is_container_ip
@@ -25,6 +26,15 @@ router = APIRouter(prefix="/phones", tags=["phones"])
 logger = logging.getLogger("ncdc.phones")
 
 
+_PHONE_SORT = {
+    "mac": Phone.mac,
+    "model": Phone.model_name,
+    "ip": Phone.ip_address,
+    "status": Phone.status,
+    "last_seen": Phone.last_seen,
+}
+
+
 @router.get("/")
 async def list_phones(
     request: Request,
@@ -32,11 +42,16 @@ async def list_phones(
     page: int = 1,
     per_page: int = 25,
     q: str = "",
+    status: str = "",
+    sort: str = "last_seen",
+    dir: str = "desc",
 ):
     page, per_page = parse_page_args(page, per_page)
     q = (q or "").strip()
+    status = (status or "").strip().lower()
+    sort = (sort or "last_seen").strip().lower()
+    dir = "asc" if (dir or "").lower() == "asc" else "desc"
 
-    # один проход по таблице вместо 4× COUNT
     total, online, dnd, offline = db.query(
         func.count(Phone.id),
         func.coalesce(func.sum(case((Phone.status == "online", 1), else_=0)), 0),
@@ -53,7 +68,7 @@ async def list_phones(
         "offline": int(offline or 0),
     }
 
-    query = db.query(Phone).order_by(Phone.last_seen.desc(), Phone.mac)
+    query = db.query(Phone)
     if q:
         like = f"%{q}%"
         query = query.filter(
@@ -64,8 +79,14 @@ async def list_phones(
                 Phone.status.ilike(like),
             )
         )
+    if status in ("online", "offline", "dnd", "unregistered"):
+        query = query.filter(Phone.status == status)
+
+    col = _PHONE_SORT.get(sort, Phone.last_seen)
+    query = query.order_by(col.asc() if dir == "asc" else col.desc(), Phone.mac)
 
     pg = paginate(query, page, per_page)
+    extra = {"status": status or None, "sort": sort, "dir": dir}
     return request.app.state.templates.TemplateResponse(
         "phones/list.html",
         {
@@ -74,8 +95,11 @@ async def list_phones(
             "stats": stats,
             "pagination": pg,
             "q": q,
+            "status_filter": status,
+            "sort": sort,
+            "sort_dir": dir,
             "per_page_options": ALLOWED_PER_PAGE,
-            "page_url": lambda p: page_url("/phones/", p, per_page, q),
+            "page_url": lambda p: page_url("/phones/", p, per_page, q, extra),
         },
     )
 
@@ -121,10 +145,11 @@ async def create_phone(request: Request, db: Session = Depends(get_db)):
     # Primary всегда линия 1, даже если JS не положил его в account_ids
     if phone.primary_account_id and phone.primary_account_id not in ids:
         ids = [phone.primary_account_id] + ids
-    phone.account_ids = ids
 
     db.add(phone)
     try:
+        db.flush()
+        set_account_ids(db, phone, ids)
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -156,7 +181,7 @@ async def edit_phone(request: Request, phone_id: int, db: Session = Depends(get_
         current_dss = []
         inherit_from_account = False
 
-    phone_account_count = len(phone.account_ids) if phone.account_ids else 0
+    phone_account_count = len(get_account_ids(db, phone))
     return request.app.state.templates.TemplateResponse(
         "phones/edit.html",
         {
@@ -199,10 +224,13 @@ async def update_phone(request: Request, phone_id: int, db: Session = Depends(ge
         phone.admin_password = new_admin_pass  # пустое поле формы сюда не попадает
 
     acc_ids_str = form.get("account_ids", "")
-    phone.account_ids = [int(x.strip()) for x in acc_ids_str.split(",") if x.strip()] if acc_ids_str else []
+    ids = [int(x.strip()) for x in acc_ids_str.split(",") if x.strip()] if acc_ids_str else []
 
     primary_id = form.get("primary_account_id")
     phone.primary_account_id = int(primary_id) if primary_id else None
+    if phone.primary_account_id and phone.primary_account_id not in ids:
+        ids = [phone.primary_account_id] + ids
+    set_account_ids(db, phone, ids)
 
     if phone.override_dss_keys:
         phone.custom_dss_keys = parse_json_field(form.get("custom_dss_keys"), [])
@@ -274,7 +302,7 @@ async def get_dss_keys(request: Request, phone_id: int, db: Session = Depends(ge
     else:
         current_dss = []
 
-    phone_account_count = len(phone.account_ids) if phone.account_ids else 0
+    phone_account_count = len(get_account_ids(db, phone))
     return request.app.state.templates.TemplateResponse(
         "phones/_dss_keys_table.html",
         {
