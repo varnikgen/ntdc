@@ -6,10 +6,12 @@ account_ids на телефоне — JSON-список без FK, поэтом�
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 import json
 
 from app.database import get_db
+from app.pagination import parse_page_args, paginate, page_url, ALLOWED_PER_PAGE
 from app.models import Account, Phone
 from app.services.audit import log_action, admin_user
 
@@ -41,10 +43,39 @@ def _detach_account_from_phones(db: Session, account_id: int) -> None:
 
 
 @router.get("/")
-async def list_accounts(request: Request, db: Session = Depends(get_db)):
-    accounts = db.query(Account).order_by(Account.name).all()
+async def list_accounts(
+    request: Request,
+    db: Session = Depends(get_db),
+    page: int = 1,
+    per_page: int = 25,
+    q: str = "",
+):
+    page, per_page = parse_page_args(page, per_page)
+    q = (q or "").strip()
+
+    query = db.query(Account).order_by(Account.name)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(
+                Account.name.ilike(like),
+                Account.username.ilike(like),
+                Account.sip_server.ilike(like),
+                Account.display_name.ilike(like),
+            )
+        )
+
+    pg = paginate(query, page, per_page)
     return request.app.state.templates.TemplateResponse(
-        "accounts/list.html", {"request": request, "accounts": accounts}
+        "accounts/list.html",
+        {
+            "request": request,
+            "accounts": pg["items"],
+            "pagination": pg,
+            "q": q,
+            "per_page_options": ALLOWED_PER_PAGE,
+            "page_url": lambda p: page_url("/accounts/", p, per_page, q),
+        },
     )
 
 

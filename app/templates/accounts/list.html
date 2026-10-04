@@ -9,12 +9,18 @@
 
 <div class="card">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
-        <div class="search-wrap">
-            <i class="bi bi-search"></i>
-            <input type="search" id="accountSearch" class="form-control form-control-sm"
-                   placeholder="Поиск: имя, username, сервер…"
-                   data-table-search="accountsTable" autocomplete="off">
-        </div>
+        <form method="get" action="/accounts/" class="d-flex align-items-center gap-2 mb-0">
+            <div class="search-wrap">
+                <i class="bi bi-search"></i>
+                <input type="search" name="q" value="{{ q or '' }}" class="form-control form-control-sm"
+                       placeholder="Поиск: имя, username, сервер…" autocomplete="off">
+            </div>
+            <input type="hidden" name="per_page" value="{{ pagination.per_page if pagination else 25 }}">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Найти</button>
+            {% if q %}
+            <a href="/accounts/?per_page={{ pagination.per_page if pagination else 25 }}" class="btn btn-sm btn-link">Сброс</a>
+            {% endif %}
+        </form>
         <a href="/accounts/new" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg"></i> Добавить
         </a>
@@ -60,23 +66,15 @@
                         <td colspan="7">
                             <div class="empty-state">
                                 <i class="bi bi-person-x"></i>
-                                Нет аккаунтов. Нажмите «Добавить».
+                                {% if q %}Ничего не найдено по запросу «{{ q }}».{% else %}Нет аккаунтов. Нажмите «Добавить».{% endif %}
                             </div>
                         </td>
                     </tr>
                     {% endfor %}
-                    <tr class="search-empty" style="display:none">
-                        <td colspan="7" class="text-center text-muted py-4">Ничего не найдено</td>
-                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
+    {% include "partials/pagination.html" %}
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-ncdcTableSearch('accountSearch', 'accountsTable');
-</script>
 {% endblock %}

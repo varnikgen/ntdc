@@ -44,12 +44,18 @@
 
 <div class="card">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
-        <div class="search-wrap">
-            <i class="bi bi-search"></i>
-            <input type="search" id="phoneSearch" class="form-control form-control-sm"
-                   placeholder="Поиск: MAC, модель, IP, статус…"
-                   data-table-search="phonesTable" autocomplete="off">
-        </div>
+        <form method="get" action="/phones/" class="d-flex align-items-center gap-2 mb-0">
+            <div class="search-wrap">
+                <i class="bi bi-search"></i>
+                <input type="search" name="q" value="{{ q or '' }}" class="form-control form-control-sm"
+                       placeholder="Поиск: MAC, модель, IP, статус…" autocomplete="off">
+            </div>
+            <input type="hidden" name="per_page" value="{{ pagination.per_page if pagination else 25 }}">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Найти</button>
+            {% if q %}
+            <a href="/phones/?per_page={{ pagination.per_page if pagination else 25 }}" class="btn btn-sm btn-link">Сброс</a>
+            {% endif %}
+        </form>
         <a href="/phones/new" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg"></i> Добавить
         </a>
@@ -74,7 +80,7 @@
                         <td class="fw-semibold font-monospace" data-sort-value="{{ phone.mac }}">{{ phone.mac }}</td>
                         <td data-sort-value="{{ phone.model_name or '' }}">{{ phone.model_name or '—' }}</td>
                         <td class="font-monospace" data-sort-value="{{ phone.ip_address or '' }}">{{ phone.ip_address or '—' }}</td>
-                        <td>
+                        <td data-sort-value="{{ phone.status }}">
                             {% if phone.status == 'online' %}
                                 <span class="badge badge-status-online">Online</span>
                             {% elif phone.status == 'dnd' %}
@@ -101,18 +107,16 @@
                         <td colspan="6">
                             <div class="empty-state">
                                 <i class="bi bi-telephone-x"></i>
-                                Нет устройств. Добавьте вручную или включите AUTO_ENROLL.
+                                {% if q %}Ничего не найдено по запросу «{{ q }}».{% else %}Нет устройств. Добавьте вручную или включите AUTO_ENROLL.{% endif %}
                             </div>
                         </td>
                     </tr>
                     {% endfor %}
-                    <tr class="search-empty" style="display:none">
-                        <td colspan="6" class="text-center text-muted py-4">Ничего не найдено</td>
-                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
+    {% include "partials/pagination.html" %}
 </div>
 {% endblock %}
 
@@ -129,6 +133,5 @@ async function deletePhone(id, mac) {
         ncdcToast(data.detail || 'Ошибка удаления', 'danger');
     }
 }
-ncdcTableSearch('phoneSearch', 'phonesTable');
 </script>
 {% endblock %}

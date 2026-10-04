@@ -8,11 +8,13 @@ GET /phones/{id}/dss-keys — HTMX-partial при переключении Overr
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 import json
 import logging
 
 from app.database import get_db
+from app.pagination import parse_page_args, paginate, page_url, ALLOWED_PER_PAGE
 from app.models import Phone, Account, PhoneModel
 from app.security import normalize_mac
 from app.phone_ip import is_phone_ip, is_container_ip
@@ -36,17 +38,48 @@ def _parse_json_field(raw, default):
 
 
 @router.get("/")
-async def list_phones(request: Request, db: Session = Depends(get_db)):
-    phones = db.query(Phone).order_by(Phone.last_seen.desc()).all()
-    total = len(phones)
-    online = sum(1 for p in phones if p.status == "online")
-    offline = sum(1 for p in phones if p.status in ("offline", "unregistered"))
+async def list_phones(
+    request: Request,
+    db: Session = Depends(get_db),
+    page: int = 1,
+    per_page: int = 25,
+    q: str = "",
+):
+    page, per_page = parse_page_args(page, per_page)
+    q = (q or "").strip()
+
+    # статистика по всей базе (не по странице)
+    all_phones = db.query(Phone)
+    stats = {
+        "total": all_phones.count(),
+        "online": all_phones.filter(Phone.status == "online").count(),
+        "dnd": all_phones.filter(Phone.status == "dnd").count(),
+        "offline": all_phones.filter(Phone.status.in_(("offline", "unregistered"))).count(),
+    }
+
+    query = db.query(Phone).order_by(Phone.last_seen.desc(), Phone.mac)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(
+                Phone.mac.ilike(like),
+                Phone.model_name.ilike(like),
+                Phone.ip_address.ilike(like),
+                Phone.status.ilike(like),
+            )
+        )
+
+    pg = paginate(query, page, per_page)
     return request.app.state.templates.TemplateResponse(
         "phones/list.html",
         {
             "request": request,
-            "phones": phones,
-            "stats": {"total": total, "online": online, "offline": offline},
+            "phones": pg["items"],
+            "stats": stats,
+            "pagination": pg,
+            "q": q,
+            "per_page_options": ALLOWED_PER_PAGE,
+            "page_url": lambda p: page_url("/phones/", p, per_page, q),
         },
     )
 
