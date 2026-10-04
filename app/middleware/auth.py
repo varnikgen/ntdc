@@ -1,17 +1,20 @@
-"""Два контура авторизации.
+"""Авторизация админки: сессия (cookie) + опционально HTTP Basic.
 
-Админка — HTTP Basic:
-  1) пользователи из таблицы admin_users (если есть);
-  2) fallback на NCDC_ADMIN_USER / NCDC_ADMIN_PASS из .env (роль admin).
+1) Session cookie ncdc_session (логин через /login)
+2) HTTP Basic — для скриптов/API (если передан заголовок)
+3) Fallback-учётка из .env (NCDC_ADMIN_*)
 
 Провижининг (/provision) — отдельно через provision_authorized().
-/actions, /health, /static исключены.
 """
 
-from fastapi import Request, status
-from fastapi.responses import PlainTextResponse, JSONResponse
+from __future__ import annotations
+
 import base64
 import logging
+from urllib.parse import quote
+
+from fastapi import Request, status
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 
 from app.config import settings
 from app.security import constant_time_equals, LoginThrottle, verify_password
@@ -24,12 +27,14 @@ ADMIN_EXCLUDED_PREFIXES = (
     "/actions",
     "/favicon.ico",
     "/static",
+    "/login",
+    "/logout",
 )
 
-# Маршруты только для role=admin
-ADMIN_ONLY_PREFIXES = (
-    "/users",
-)
+ADMIN_ONLY_PREFIXES = ("/users",)
+
+SESSION_USER_KEY = "admin_user"
+SESSION_ROLE_KEY = "admin_role"
 
 throttle = LoginThrottle(
     max_failures=settings.LOGIN_MAX_FAILURES,
@@ -44,7 +49,25 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _unauthorized(detail: str = "Unauthorized") -> PlainTextResponse:
+def _wants_html(request: Request) -> bool:
+    accept = (request.headers.get("accept") or "").lower()
+    if "text/html" in accept:
+        return True
+    # браузерный переход без явного Accept JSON
+    if request.method == "GET" and "application/json" not in accept:
+        return True
+    return False
+
+
+def _unauthorized(request: Request, detail: str = "Unauthorized"):
+    if _wants_html(request):
+        next_url = request.url.path
+        if request.url.query:
+            next_url += "?" + request.url.query
+        return RedirectResponse(
+            url=f"/login?next={quote(next_url, safe='')}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     return PlainTextResponse(
         detail,
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -83,9 +106,8 @@ def provision_authorized(request: Request) -> bool:
     )
 
 
-def _authenticate(username: str, password: str) -> tuple[str, str] | None:
-    """Возвращает (username, role) или None."""
-    # 1. DB users
+def authenticate(username: str, password: str) -> tuple[str, str] | None:
+    """Проверяет логин/пароль. Возвращает (username, role) или None."""
     try:
         from app.database import SessionLocal
         from app.models import AdminUser
@@ -100,7 +122,6 @@ def _authenticate(username: str, password: str) -> tuple[str, str] | None:
     except Exception as exc:
         logger.debug("DB auth lookup failed: %s", exc)
 
-    # 2. Env bootstrap admin
     user_ok = constant_time_equals(username, settings.NCDC_ADMIN_USER)
     pass_ok = constant_time_equals(password, settings.NCDC_ADMIN_PASS)
     if user_ok and pass_ok and settings.NCDC_ADMIN_PASS:
@@ -109,7 +130,24 @@ def _authenticate(username: str, password: str) -> tuple[str, str] | None:
     return None
 
 
-async def basic_auth_middleware(request: Request, call_next):
+def login_user(request: Request, username: str, role: str) -> None:
+    request.session[SESSION_USER_KEY] = username
+    request.session[SESSION_ROLE_KEY] = role
+
+
+def logout_user(request: Request) -> None:
+    request.session.clear()
+
+
+def session_identity(request: Request) -> tuple[str, str] | None:
+    user = request.session.get(SESSION_USER_KEY)
+    role = request.session.get(SESSION_ROLE_KEY)
+    if user and role:
+        return str(user), str(role)
+    return None
+
+
+async def auth_middleware(request: Request, call_next):
     path = request.url.path
 
     if any(path.startswith(prefix) for prefix in ADMIN_EXCLUDED_PREFIXES):
@@ -122,33 +160,39 @@ async def basic_auth_middleware(request: Request, call_next):
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        return _unauthorized()
+    identity = session_identity(request)
 
-    parsed = _decode_basic(auth_header)
-    if not parsed:
-        return PlainTextResponse("Invalid authorization header", status_code=400)
-
-    username, password = parsed
-    identity = _authenticate(username, password)
+    # Опционально: HTTP Basic для API/скриптов
     if not identity:
-        throttle.record_failure(ip)
-        logger.warning("Failed admin login from %s user=%s", ip, username)
-        return _unauthorized("Incorrect username or password")
+        auth_header = request.headers.get("Authorization")
+        if auth_header:
+            parsed = _decode_basic(auth_header)
+            if parsed:
+                username, password = parsed
+                identity = authenticate(username, password)
+                if identity:
+                    throttle.record_success(ip)
+                else:
+                    throttle.record_failure(ip)
+                    logger.warning("Failed Basic login from %s user=%s", ip, username)
+                    return _unauthorized(request, "Incorrect username or password")
 
-    throttle.record_success(ip)
+    if not identity:
+        return _unauthorized(request)
+
     auth_user, role = identity
     request.state.admin_user = auth_user
     request.state.admin_role = role
 
-    # Role gate for /users
     if any(path.startswith(prefix) for prefix in ADMIN_ONLY_PREFIXES):
         if role != "admin":
             return _forbidden("Admin role required")
 
-    # Viewer: only GET/HEAD
     if role == "viewer" and request.method.upper() not in ("GET", "HEAD", "OPTIONS"):
         return _forbidden("Viewer role is read-only")
 
     return await call_next(request)
+
+
+# обратная совместимость имени
+basic_auth_middleware = auth_middleware

@@ -6,6 +6,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
+from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -13,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import Base, SessionLocal, engine, get_db, run_migrations
 from app.defaults import seed_global_config
-from app.middleware.auth import basic_auth_middleware
+from app.middleware.auth import auth_middleware
 from app.middleware.csrf import csrf_middleware
 from app.models import Phone
 from app.routers import (
@@ -27,6 +28,8 @@ from app.routers import (
     settings as settings_router,
     users as users_router,
 )
+from app.routers import auth_routes
+
 from app.services.audit_cleanup import background_tasks
 
 logging.basicConfig(
@@ -81,10 +84,18 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Последний add_middleware выполняется первым. Сначала Basic Auth, потом CSRF:
-# неавторизованный POST не должен получать осмысленный CSRF-ответ.
+# Порядок: последний зарегистрированный middleware обрабатывает запрос первым.
+# Session → Auth → CSRF.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="ncdc_session",
+    max_age=60 * 60 * 24 * 7,  # 7 дней
+    same_site="lax",
+    https_only=False,  # True только если весь доступ строго по HTTPS
+)
 app.middleware("http")(csrf_middleware)
-app.middleware("http")(basic_auth_middleware)
+app.middleware("http")(auth_middleware)
 
 app.include_router(provisioning.router)
 app.include_router(actions.router)
@@ -95,6 +106,7 @@ app.include_router(models_router.router)
 app.include_router(audit_router.router)
 app.include_router(dashboard_router.router)
 app.include_router(users_router.router)
+app.include_router(auth_routes.router)
 
 
 @app.get("/")

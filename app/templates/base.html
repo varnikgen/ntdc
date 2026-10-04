@@ -44,7 +44,18 @@
                 </a>
             </nav>
             <div class="sidebar-footer">
-                <span id="sidebar-user"><i class="bi bi-person-circle me-1"></i>{{ request.state.admin_user or 'admin' }}</span>
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                    <span id="sidebar-user" class="text-truncate" title="{{ request.state.admin_user or '' }}">
+                        <i class="bi bi-person-circle me-1"></i>{{ request.state.admin_user or 'admin' }}
+                        {% if request.state.admin_role %}
+                        <span class="badge text-bg-secondary ms-1" style="font-size:0.65rem">{{ request.state.admin_role }}</span>
+                        {% endif %}
+                    </span>
+                    <a href="/logout" class="btn btn-sm btn-outline-light py-0 px-2" title="Выйти"
+                       onclick="event.preventDefault(); fetch('/logout', {method:'POST'}).finally(() => location.href='/login');">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </a>
+                </div>
             </div>
         </aside>
 

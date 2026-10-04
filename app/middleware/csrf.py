@@ -21,6 +21,8 @@ EXCLUDED_PREFIXES = (
     "/actions",
     "/static",
     "/favicon.ico",
+    "/login",
+    "/logout",
 )
 
 
