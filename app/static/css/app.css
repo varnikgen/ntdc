@@ -291,15 +291,15 @@ body {
   gap: 0.65rem;
 }
 .sidebar-brand-logo {
-  width: 40px;
-  height: 40px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
   flex-shrink: 0;
   border-radius: 8px;
 }
 .sidebar-brand-word {
   max-width: 140px;
-  max-height: 36px;
+  max-height: 70px;
   object-fit: contain;
   display: block;
 }
