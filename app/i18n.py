@@ -91,6 +91,17 @@ MESSAGES: dict[str, dict[str, str]] = {
     "settings.enabled": {"ru": "Вкл", "en": "Enabled"},
     "settings.disabled": {"ru": "Выкл", "en": "Disabled"},
     "common.remove": {"ru": "Удалить", "en": "Remove"},
+    "dash.title": {"ru": "Панель", "en": "Dashboard"},
+    "dash.total_devices": {"ru": "Всего устройств", "en": "Total devices"},
+    "dash.online": {"ru": "Online", "en": "Online"},
+    "dash.dnd": {"ru": "DND", "en": "DND"},
+    "dash.offline": {"ru": "Offline / Unreg", "en": "Offline / Unreg"},
+    "dash.quick": {"ru": "Быстрые действия", "en": "Quick actions"},
+    "dash.devices": {"ru": "Устройства", "en": "Devices"},
+    "dash.add_device": {"ru": "Добавить устройство", "en": "Add device"},
+    "dash.accounts": {"ru": "Аккаунты", "en": "Accounts"},
+    "dash.global_config": {"ru": "Глобальные настройки", "en": "Global Config"},
+
 
 }
 

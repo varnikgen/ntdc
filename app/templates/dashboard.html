@@ -1,17 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - NCDC{% endblock %}
+{% block title %}{{ request.state.t("dash.title") }} — {{ request.state.t.short }}{% endblock %}
 
 {% block content %}
+{% set t = request.state.t %}
 <div class="page-header">
-    <h2><i class="bi bi-speedometer2 me-2"></i>Dashboard</h2>
+    <h2><i class="bi bi-speedometer2 me-2"></i>{{ t("dash.title") }}</h2>
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
         <div class="card stat-card text-bg-primary">
             <div class="card-body py-3">
-                <div class="small opacity-75">Всего устройств</div>
+                <div class="small opacity-75">{{ t("dash.total_devices") }}</div>
                 <div class="fs-2 fw-bold">{{ stats.total }}</div>
             </div>
         </div>
@@ -19,7 +20,7 @@
     <div class="col-6 col-md-3">
         <div class="card stat-card text-bg-success">
             <div class="card-body py-3">
-                <div class="small opacity-75">Online</div>
+                <div class="small opacity-75">{{ t("dash.online") }}</div>
                 <div class="fs-2 fw-bold">{{ stats.online | default(0) }}</div>
             </div>
         </div>
@@ -27,7 +28,7 @@
     <div class="col-6 col-md-3">
         <div class="card stat-card text-bg-warning">
             <div class="card-body py-3">
-                <div class="small opacity-75">DND</div>
+                <div class="small opacity-75">{{ t("dash.dnd") }}</div>
                 <div class="fs-2 fw-bold">{{ stats.dnd | default(0) }}</div>
             </div>
         </div>
@@ -35,7 +36,7 @@
     <div class="col-6 col-md-3">
         <div class="card stat-card text-bg-secondary">
             <div class="card-body py-3">
-                <div class="small opacity-75">Offline / Unreg</div>
+                <div class="small opacity-75">{{ t("dash.offline") }}</div>
                 <div class="fs-2 fw-bold">{{ (stats.offline or 0) + (stats.unregistered or 0) }}</div>
             </div>
         </div>
@@ -45,13 +46,13 @@
 <div class="row g-3">
     <div class="col-md-6">
         <div class="card">
-            <div class="card-header">Быстрые действия</div>
+            <div class="card-header">{{ t("dash.quick") }}</div>
             <div class="card-body d-flex flex-wrap gap-2">
-                <a href="/phones" class="btn btn-outline-primary btn-sm"><i class="bi bi-telephone"></i> Устройства</a>
-                <a href="/phones/new" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> Добавить устройство</a>
-                <a href="/accounts" class="btn btn-outline-primary btn-sm"><i class="bi bi-person-badge"></i> Аккаунты</a>
+                <a href="/phones" class="btn btn-outline-primary btn-sm"><i class="bi bi-telephone"></i> {{ t("dash.devices") }}</a>
+                <a href="/phones/new" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> {{ t("dash.add_device") }}</a>
+                <a href="/accounts" class="btn btn-outline-primary btn-sm"><i class="bi bi-person-badge"></i> {{ t("dash.accounts") }}</a>
                 {% if (request.state.admin_role or 'admin') == 'admin' %}
-                <a href="/settings/global" class="btn btn-outline-secondary btn-sm"><i class="bi bi-gear"></i> Global Config</a>
+                <a href="/settings/global" class="btn btn-outline-secondary btn-sm"><i class="bi bi-gear"></i> {{ t("dash.global_config") }}</a>
                 {% endif %}
             </div>
         </div>
