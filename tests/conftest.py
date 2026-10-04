@@ -21,13 +21,11 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_tmp.name}"
 import pytest
 from fastapi.testclient import TestClient
 
-from app.database import Base, engine
+from app.database import Base, engine, SessionLocal
 from app.main import app
-
-ADMIN_AUTH = {
-    "Authorization": "Basic "
-    + base64.b64encode(b"admin:test-admin-pass-123").decode()
-}
+from app.models import AdminUser
+from app.security import hash_password
+from app.middleware.auth import invalidate_auth_cache
 
 
 @pytest.fixture(scope="session")
@@ -38,11 +36,57 @@ def client():
 
 
 @pytest.fixture
-def admin_headers(client):
-    response = client.get("/", headers=ADMIN_AUTH)
-    assert response.status_code == 200
-    token = response.cookies.get("ncdc_csrf") or client.cookies.get("ncdc_csrf")
-    headers = dict(ADMIN_AUTH)
+def admin_session(client):
+    """Логин через форму → cookie сессии."""
+    invalidate_auth_cache()
+    r = client.post(
+        "/login",
+        data={"username": "admin", "password": "test-admin-pass-123", "next": "/"},
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 303), r.text
+    # CSRF из cookie после GET
+    client.get("/login")
+    token = client.cookies.get("ncdc_csrf")
+    headers = {}
     if token:
         headers["X-CSRF-Token"] = token
     return headers
+
+
+@pytest.fixture
+def operator_session(client):
+    invalidate_auth_cache()
+    db = SessionLocal()
+    try:
+        u = db.query(AdminUser).filter(AdminUser.username == "operator1").first()
+        if not u:
+            u = AdminUser(
+                username="operator1",
+                password_hash=hash_password("operator-pass-123"),
+                role="operator",
+                is_active=True,
+            )
+            db.add(u)
+            db.commit()
+    finally:
+        db.close()
+    invalidate_auth_cache()
+    r = client.post(
+        "/login",
+        data={"username": "operator1", "password": "operator-pass-123", "next": "/"},
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 303), r.text
+    client.get("/")
+    token = client.cookies.get("ncdc_csrf")
+    headers = {}
+    if token:
+        headers["X-CSRF-Token"] = token
+    return headers
+
+
+@pytest.fixture
+def admin_headers(client, admin_session):
+    """Сессия admin + CSRF (для POST)."""
+    return admin_session
