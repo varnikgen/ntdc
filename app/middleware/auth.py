@@ -49,6 +49,20 @@ throttle = LoginThrottle(
     lockout_seconds=settings.LOGIN_LOCKOUT_SECONDS,
 )
 
+# Кэш записей admin_users: username -> (password_hash, role, is_active, expires_at)
+_AUTH_CACHE: dict[str, tuple[str, str, bool, float]] = {}
+_AUTH_CACHE_TTL = 60.0  # секунд
+_AUTH_CACHE_LOCK = __import__("threading").Lock()
+
+
+def invalidate_auth_cache(username: str | None = None) -> None:
+    """Сброс кэша после create/update/delete пользователя."""
+    with _AUTH_CACHE_LOCK:
+        if username is None:
+            _AUTH_CACHE.clear()
+        else:
+            _AUTH_CACHE.pop(username, None)
+
 
 def _client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")
@@ -114,8 +128,16 @@ def provision_authorized(request: Request) -> bool:
     )
 
 
-def authenticate(username: str, password: str) -> tuple[str, str] | None:
-    """Проверяет логин/пароль. Возвращает (username, role) или None."""
+def _lookup_admin_user(username: str) -> tuple[str, str, bool] | None:
+    """(password_hash, role, is_active) из кэша или БД."""
+    import time
+
+    now = time.monotonic()
+    with _AUTH_CACHE_LOCK:
+        hit = _AUTH_CACHE.get(username)
+        if hit and hit[3] > now:
+            return hit[0], hit[1], hit[2]
+
     try:
         from app.database import SessionLocal
         from app.models import AdminUser
@@ -123,12 +145,29 @@ def authenticate(username: str, password: str) -> tuple[str, str] | None:
         db = SessionLocal()
         try:
             user = db.query(AdminUser).filter(AdminUser.username == username).first()
-            if user and user.is_active and verify_password(password, user.password_hash):
-                return user.username, user.role
+            if not user:
+                with _AUTH_CACHE_LOCK:
+                    # негативный кэш на короткий TTL не кладём — чтобы новый user сразу работал
+                    _AUTH_CACHE.pop(username, None)
+                return None
+            entry = (user.password_hash, user.role, bool(user.is_active), now + _AUTH_CACHE_TTL)
+            with _AUTH_CACHE_LOCK:
+                _AUTH_CACHE[username] = entry
+            return entry[0], entry[1], entry[2]
         finally:
             db.close()
     except Exception as exc:
         logger.debug("DB auth lookup failed: %s", exc)
+        return None
+
+
+def authenticate(username: str, password: str) -> tuple[str, str] | None:
+    """Проверяет логин/пароль. Возвращает (username, role) или None."""
+    row = _lookup_admin_user(username)
+    if row:
+        password_hash, role, is_active = row
+        if is_active and verify_password(password, password_hash):
+            return username, role
 
     user_ok = constant_time_equals(username, settings.NCDC_ADMIN_USER)
     pass_ok = constant_time_equals(password, settings.NCDC_ADMIN_PASS)

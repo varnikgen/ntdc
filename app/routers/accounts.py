@@ -8,35 +8,42 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
-import json
 
 from app.database import get_db
 from app.pagination import parse_page_args, paginate, page_url, ALLOWED_PER_PAGE
+from app.formutil import parse_json_list
 from app.models import Account, Phone
 from app.services.audit import log_action, admin_user
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
-def _parse_dss(raw):
-    try:
-        data = json.loads(raw or "[]")
-        return data if isinstance(data, list) else []
-    except json.JSONDecodeError:
-        return []
 
 
 def _detach_account_from_phones(db: Session, account_id: int) -> None:
     """Снимает аккаунт с линий. Если он был primary — берём следующий из списка."""
-    phones = db.query(Phone).all()
-    for phone in phones:
+    from sqlalchemy import cast, String, or_
+
+    # SQLite JSON: сужаем выборку LIKE + primary_account_id, точная проверка в Python
+    id_str = str(account_id)
+    candidates = (
+        db.query(Phone)
+        .filter(
+            or_(
+                Phone.primary_account_id == account_id,
+                cast(Phone.account_ids, String).like(f"%{id_str}%"),
+            )
+        )
+        .all()
+    )
+    for phone in candidates:
         changed = False
-        ids = list(phone.account_ids or [])
+        ids = [int(i) for i in (phone.account_ids or []) if i is not None]
         if account_id in ids:
             phone.account_ids = [i for i in ids if i != account_id]
             changed = True
         if phone.primary_account_id == account_id:
-            phone.primary_account_id = (phone.account_ids[0] if phone.account_ids else None)
+            phone.primary_account_id = phone.account_ids[0] if phone.account_ids else None
             changed = True
         if changed:
             db.add(phone)
@@ -101,7 +108,7 @@ async def create_account(request: Request, db: Session = Depends(get_db)):
         username=form.get("username"),
         password=password,
         display_name=form.get("display_name"),
-        dss_keys=_parse_dss(form.get("dss_keys")),
+        dss_keys=parse_json_list(form.get("dss_keys")),
     )
     db.add(account)
     try:
@@ -141,7 +148,7 @@ async def update_account(request: Request, account_id: int, db: Session = Depend
     new_password = form.get("password")
     if new_password:
         account.password = new_password  # пустое = не менять, пароль не светится в value=
-    account.dss_keys = _parse_dss(form.get("dss_keys"))
+    account.dss_keys = parse_json_list(form.get("dss_keys"))
 
     try:
         db.commit()

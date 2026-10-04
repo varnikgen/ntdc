@@ -7,7 +7,8 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models import AdminUser
-from app.security import hash_password, normalize_mac
+from app.security import hash_password
+from app.middleware.auth import invalidate_auth_cache
 from app.services.audit import log_action
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -74,6 +75,7 @@ async def create_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+    invalidate_auth_cache(username)
     log_action(
         db, "CREATE_USER", "AdminUser", user.id,
         getattr(request.state, "admin_user", "admin"),
@@ -119,6 +121,7 @@ async def update_user(
         user.password_hash = hash_password(password)
 
     db.commit()
+    invalidate_auth_cache()  # полное: могло смениться username
     log_action(
         db, "UPDATE_USER", "AdminUser", user.id,
         getattr(request.state, "admin_user", "admin"),
@@ -145,6 +148,7 @@ async def delete_user(
     uname = user.username
     db.delete(user)
     db.commit()
+    invalidate_auth_cache(uname)
     log_action(
         db, "DELETE_USER", "AdminUser", user_id,
         current or "admin",

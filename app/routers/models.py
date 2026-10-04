@@ -7,9 +7,9 @@ name совпадает с Yealink $PN и именем файла $PN.cfg — п
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-import json
 
 from app.database import get_db
+from app.formutil import parse_json_dict
 from app.models import PhoneModel, Phone
 from app.services.audit import log_action, admin_user
 
@@ -17,12 +17,20 @@ router = APIRouter(prefix="/models", tags=["models"])
 
 
 def _parse_default_config(raw, fallback=None):
-    """Невалидный JSON на update → fallback=None, старое значение не затираем."""
-    try:
-        data = json.loads(raw or "{}")
-        return data if isinstance(data, dict) else fallback
-    except json.JSONDecodeError:
+    """Невалидный/пустой JSON на update → fallback (не затираем старое)."""
+    if raw is None or raw == "":
         return fallback
+    data = parse_json_dict(raw)
+    # parse_json_dict на битом JSON вернёт {} — отличаем от явного {}
+    if data == {} and raw not in ("{}", "{ }"):
+        # если строка не пустая и не "{}", считаем ошибкой парса
+        import json as _json
+        try:
+            parsed = _json.loads(raw)
+            return parsed if isinstance(parsed, dict) else fallback
+        except Exception:
+            return fallback
+    return data if isinstance(data, dict) else fallback
 
 
 @router.get("/")

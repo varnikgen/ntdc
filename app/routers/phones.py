@@ -10,11 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func, case
 from sqlalchemy.exc import IntegrityError
-import json
 import logging
 
 from app.database import get_db
 from app.pagination import parse_page_args, paginate, page_url, ALLOWED_PER_PAGE
+from app.formutil import parse_json_field
 from app.models import Phone, Account, PhoneModel
 from app.security import normalize_mac
 from app.phone_ip import is_phone_ip, is_container_ip
@@ -23,18 +23,6 @@ from app.services.audit import log_action, admin_user
 
 router = APIRouter(prefix="/phones", tags=["phones"])
 logger = logging.getLogger("ncdc.phones")
-
-
-def _parse_json_field(raw, default):
-    """JS кладёт JSON в FormData; сломанный JSON → default, не 500."""
-    if raw is None or raw == "":
-        return default
-    if isinstance(raw, (list, dict)):
-        return raw
-    try:
-        return json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        return default
 
 
 @router.get("/")
@@ -217,11 +205,11 @@ async def update_phone(request: Request, phone_id: int, db: Session = Depends(ge
     phone.primary_account_id = int(primary_id) if primary_id else None
 
     if phone.override_dss_keys:
-        phone.custom_dss_keys = _parse_json_field(form.get("custom_dss_keys"), [])
+        phone.custom_dss_keys = parse_json_field(form.get("custom_dss_keys"), [])
     else:
         phone.custom_dss_keys = None  # снова наследуем от аккаунта
 
-    phone.custom_config = _parse_json_field(form.get("custom_config"), {})
+    phone.custom_config = parse_json_field(form.get("custom_config"), {})
 
     db.commit()
     db.refresh(phone)
