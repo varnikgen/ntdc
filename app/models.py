@@ -70,8 +70,8 @@ class Phone(Base):
     primary_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
 
     ip_address = Column(String, nullable=True)  # обновляется из Action URL
-    status = Column(String, default="offline")  # online | offline | dnd | unregistered
-    last_seen = Column(DateTime, default=datetime.utcnow)
+    status = Column(String, default="offline", index=True)  # online | offline | dnd | unregistered
+    last_seen = Column(DateTime, default=datetime.utcnow, index=True)
 
     override_dss_keys = Column(Boolean, default=False)
     custom_dss_keys = Column(JSON, nullable=True)

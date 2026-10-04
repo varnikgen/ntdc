@@ -8,7 +8,7 @@ GET /phones/{id}/dss-keys — HTMX-partial при переключении Overr
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func, case
 from sqlalchemy.exc import IntegrityError
 import json
 import logging
@@ -48,13 +48,21 @@ async def list_phones(
     page, per_page = parse_page_args(page, per_page)
     q = (q or "").strip()
 
-    # статистика по всей базе (не по странице)
-    all_phones = db.query(Phone)
+    # один проход по таблице вместо 4× COUNT
+    total, online, dnd, offline = db.query(
+        func.count(Phone.id),
+        func.coalesce(func.sum(case((Phone.status == "online", 1), else_=0)), 0),
+        func.coalesce(func.sum(case((Phone.status == "dnd", 1), else_=0)), 0),
+        func.coalesce(
+            func.sum(case((Phone.status.in_(("offline", "unregistered")), 1), else_=0)),
+            0,
+        ),
+    ).one()
     stats = {
-        "total": all_phones.count(),
-        "online": all_phones.filter(Phone.status == "online").count(),
-        "dnd": all_phones.filter(Phone.status == "dnd").count(),
-        "offline": all_phones.filter(Phone.status.in_(("offline", "unregistered"))).count(),
+        "total": int(total or 0),
+        "online": int(online or 0),
+        "dnd": int(dnd or 0),
+        "offline": int(offline or 0),
     }
 
     query = db.query(Phone).order_by(Phone.last_seen.desc(), Phone.mac)

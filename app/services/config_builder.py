@@ -7,6 +7,7 @@
 import logging
 from app.config import settings
 from app.models import Phone, Account, PhoneModel, GlobalConfig
+from app.security import normalize_mac
 from app.services.linekeys import render_linekeys_block
 
 logger = logging.getLogger("ncdc.config_builder")
@@ -14,8 +15,8 @@ logger = logging.getLogger("ncdc.config_builder")
 
 def build_phone_config(db, mac: str) -> dict:
     """Контекст для phone.cfg.j2. ValueError, если MAC нет в БД."""
-    mac_clean = mac.replace(":", "").replace("-", "").lower()
-    logger.info("Building config for MAC %s", mac_clean.upper())
+    mac_clean = normalize_mac(mac) or (mac or "").replace(":", "").replace("-", "").upper()
+    logger.debug("Building config for MAC %s", mac_clean)
 
     phone = db.query(Phone).filter(Phone.mac.ilike(mac_clean)).first()
     if not phone:
@@ -38,24 +39,30 @@ def build_phone_config(db, mac: str) -> dict:
         },
     }
 
-    # index в enumerate(start=1) = номер линии Yealink (account.N.*)
+    # Один IN-запрос вместо N+1 по account_ids
     accounts_data = []
-    if phone.account_ids and isinstance(phone.account_ids, list):
-        for idx, acc_id in enumerate(phone.account_ids, start=1):
-            acc = db.query(Account).filter(Account.id == acc_id).first()
-            if acc:
-                accounts_data.append(
-                    {
-                        "index": idx,
-                        "name": acc.name,
-                        "username": acc.username,
-                        "password": acc.password,
-                        "sip_server": acc.sip_server,
-                        "sip_port": acc.sip_port,
-                        "transport": acc.transport,
-                        "display_name": acc.display_name,
-                    }
-                )
+    acc_ids = phone.account_ids if isinstance(phone.account_ids, list) else []
+    acc_ids = [int(x) for x in acc_ids if x is not None]
+    by_id = {}
+    if acc_ids:
+        rows = db.query(Account).filter(Account.id.in_(acc_ids)).all()
+        by_id = {a.id: a for a in rows}
+    for idx, acc_id in enumerate(acc_ids, start=1):
+        acc = by_id.get(int(acc_id))
+        if not acc:
+            continue
+        accounts_data.append(
+            {
+                "index": idx,
+                "name": acc.name,
+                "username": acc.username,
+                "password": acc.password,
+                "sip_server": acc.sip_server,
+                "sip_port": acc.sip_port,
+                "transport": acc.transport,
+                "display_name": acc.display_name,
+            }
+        )
     final_config["accounts"] = accounts_data
 
     # Индивидуальные DSS имеют приоритет над наследством с primary-аккаунта
@@ -63,7 +70,11 @@ def build_phone_config(db, mac: str) -> dict:
     if phone.override_dss_keys and phone.custom_dss_keys:
         dss_keys = sorted(phone.custom_dss_keys, key=lambda x: x.get("line", 0))
     elif phone.primary_account_id:
-        primary_acc = db.query(Account).filter(Account.id == phone.primary_account_id).first()
+        primary_acc = by_id.get(phone.primary_account_id)
+        if primary_acc is None:
+            primary_acc = (
+                db.query(Account).filter(Account.id == phone.primary_account_id).first()
+            )
         if primary_acc and primary_acc.dss_keys:
             dss_keys = sorted(primary_acc.dss_keys, key=lambda x: x.get("line", 0))
     final_config["dss_keys"] = dss_keys

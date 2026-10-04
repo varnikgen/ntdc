@@ -66,3 +66,11 @@ def run_migrations() -> None:
             existing = {row[1] for row in rows}
             if existing and column not in existing:
                 conn.execute(text(ddl))
+
+        # Индексы для списков и фонового offline-скана (идемпотентно)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_phones_status ON phones (status)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_phones_last_seen ON phones (last_seen)"
+        ))
