@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Пользователи - NCDC{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2><i class="bi bi-people me-2"></i>Пользователи сервиса</h2>
+    <div class="page-header-actions">
+        <div class="search-wrap">
+            <i class="bi bi-search"></i>
+            <input type="search" id="userSearch" class="form-control form-control-sm"
+                   placeholder="Поиск по имени, роли…"
+                   data-table-search="usersTable" autocomplete="off">
+        </div>
+        <a href="/users/new" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg"></i> Создать
+        </a>
+    </div>
+</div>
+
+<div class="alert alert-info small">
+    <i class="bi bi-info-circle me-1"></i>
+    Пользователь из <code>.env</code> (<strong>{{ request.state.admin_user }}</strong> / роль admin) всегда работает как резервный вход.
+    Роли: <strong>admin</strong> — полный доступ; <strong>operator</strong> — управление устройствами и аккаунтами;
+    <strong>viewer</strong> — только просмотр.
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="usersTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Имя</th>
+                        <th>Роль</th>
+                        <th>Статус</th>
+                        <th>Создан</th>
+                        <th class="text-end">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr data-searchable data-search="{{ u.username }} {{ u.role }}">
+                        <td class="fw-semibold">{{ u.username }}</td>
+                        <td>
+                            {% if u.role == 'admin' %}
+                                <span class="badge text-bg-danger">admin</span>
+                            {% elif u.role == 'operator' %}
+                                <span class="badge text-bg-primary">operator</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">viewer</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.is_active %}
+                                <span class="badge text-bg-success">active</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">disabled</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ u.created_at.strftime('%Y-%m-%d %H:%M') if u.created_at else '—' }}</td>
+                        <td class="text-end text-nowrap">
+                            <a href="/users/{{ u.id }}/edit" class="btn btn-sm btn-outline-primary" title="Редактировать">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger" title="Удалить"
+                                    onclick="deleteUser({{ u.id }}, '{{ u.username }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="bi bi-people"></i>
+                                Пользователей пока нет. Создайте первого или входите через .env admin.
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="search-empty" style="display:none">
+                        <td colspan="5" class="text-center text-muted py-4">Ничего не найдено</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function deleteUser(id, name) {
+    if (!confirm('Удалить пользователя ' + name + '?')) return;
+    const response = await fetch('/users/' + id + '/delete', { method: 'POST' });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && data.status === 'success') {
+        ncdcToast('Пользователь удалён');
+        window.location.reload();
+    } else {
+        ncdcToast(data.detail || 'Ошибка удаления', 'danger');
+    }
+}
+ncdcTableSearch('userSearch', 'usersTable');
+</script>
+{% endblock %}

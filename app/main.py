@@ -25,6 +25,7 @@ from app.routers import (
     phones,
     provisioning,
     settings as settings_router,
+    users as users_router,
 )
 from app.services.audit_cleanup import background_tasks
 
@@ -93,6 +94,7 @@ app.include_router(settings_router.router)
 app.include_router(models_router.router)
 app.include_router(audit_router.router)
 app.include_router(dashboard_router.router)
+app.include_router(users_router.router)
 
 
 @app.get("/")

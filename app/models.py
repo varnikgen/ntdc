@@ -102,3 +102,15 @@ class AuditLog(Base):
     entity_id = Column(Integer)
     user = Column(String, default="system")
     details = Column(Text)
+
+class AdminUser(Base):
+    """Пользователь веб-админки. Роли: admin | operator | viewer."""
+    __tablename__ = "admin_users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(64), unique=True, index=True, nullable=False)
+    password_hash = Column(String(256), nullable=False)
+    role = Column(String(32), default="operator", nullable=False)  # admin | operator | viewer
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

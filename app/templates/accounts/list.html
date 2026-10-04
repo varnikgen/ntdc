@@ -1,61 +1,82 @@
 {% extends "base.html" %}
 
-{% block title %}Account List - NCDC{% endblock %}
+{% block title %}SIP-аккаунты - NCDC{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Account List</h2>
-    <a href="/accounts/new" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> Add Account
-    </a>
+<div class="page-header">
+    <h2><i class="bi bi-person-badge me-2"></i>SIP-аккаунты</h2>
+    <div class="page-header-actions">
+        <div class="search-wrap">
+            <i class="bi bi-search"></i>
+            <input type="search" id="accountSearch" class="form-control form-control-sm"
+                   placeholder="Поиск: имя, username, сервер…"
+                   data-table-search="accountsTable" autocomplete="off">
+        </div>
+        <a href="/accounts/new" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg"></i> Добавить
+        </a>
+    </div>
 </div>
 
 <div class="card">
-    <div class="card-body">
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle mb-0" id="accountsTable">
                 <thead class="table-light">
                     <tr>
-                        <th>Name</th>
+                        <th>Имя</th>
                         <th>Username</th>
                         <th>SIP Server</th>
                         <th>Transport</th>
                         <th>Display Name</th>
-                        <th>DSS Keys</th>
-                        <th>Actions</th>
+                        <th>DSS</th>
+                        <th class="text-end">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for acc in accounts %}
-                    <tr>
-                        <td class="fw-bold">{{ acc.name }}</td>
-                        <td>{{ acc.username }}</td>
-                        <td>{{ acc.sip_server }}:{{ acc.sip_port }}</td>
-                        <td>
-                            <span class="badge bg-info">{{ acc.transport | upper }}</span>
-                        </td>
-                        <td>{{ acc.display_name or '-' }}</td>
+                    <tr data-searchable
+                        data-search="{{ acc.name }} {{ acc.username }} {{ acc.sip_server }} {{ acc.display_name or '' }}">
+                        <td class="fw-semibold">{{ acc.name }}</td>
+                        <td class="font-monospace">{{ acc.username }}</td>
+                        <td class="font-monospace">{{ acc.sip_server }}:{{ acc.sip_port }}</td>
+                        <td><span class="badge text-bg-info">{{ acc.transport | upper }}</span></td>
+                        <td>{{ acc.display_name or '—' }}</td>
                         <td>
                             {% if acc.dss_keys %}
-                                <span class="badge bg-secondary">{{ acc.dss_keys | length }} keys</span>
+                                <span class="badge text-bg-secondary">{{ acc.dss_keys | length }}</span>
                             {% else %}
-                                <span class="text-muted">None</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td>
-                            <a href="/accounts/{{ acc.id }}/edit" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i> Edit
+                        <td class="text-end">
+                            <a href="/accounts/{{ acc.id }}/edit" class="btn btn-sm btn-outline-primary" title="Редактировать">
+                                <i class="bi bi-pencil"></i>
                             </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted">No accounts found. Click "Add Account" to create one.</td>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <i class="bi bi-person-x"></i>
+                                Нет аккаунтов. Нажмите «Добавить».
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
+                    <tr class="search-empty" style="display:none">
+                        <td colspan="7" class="text-center text-muted py-4">Ничего не найдено</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+ncdcTableSearch('accountSearch', 'accountsTable');
+</script>
 {% endblock %}

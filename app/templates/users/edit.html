@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}{% if user %}Редактировать {{ user.username }}{% else %}Новый пользователь{% endif %} - NCDC{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>
+        <i class="bi bi-person-gear me-2"></i>
+        {% if user %}Редактировать: {{ user.username }}{% else %}Новый пользователь{% endif %}
+    </h2>
+    <a href="/users" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> К списку
+    </a>
+</div>
+
+<form id="userForm" method="post"
+      action="{% if user %}/users/{{ user.id }}/update{% else %}/users/{% endif %}">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header"><i class="bi bi-person"></i> Учётная запись</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Имя пользователя</label>
+                        <input type="text" name="username" class="form-control" required minlength="2" maxlength="64"
+                               value="{{ user.username if user else '' }}" autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Пароль</label>
+                        <input type="password" name="password" class="form-control" autocomplete="new-password"
+                               {% if not user %}required minlength="8"{% else %}minlength="8"{% endif %}
+                               placeholder="{% if user %}Оставьте пустым, чтобы не менять{% else %}Минимум 8 символов{% endif %}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Роль</label>
+                        <select name="role" class="form-select">
+                            {% for r in roles %}
+                            <option value="{{ r }}" {% if user and user.role == r %}selected{% elif not user and r == 'operator' %}selected{% endif %}>
+                                {{ r }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            admin — полный доступ; operator — устройства и аккаунты; viewer — только чтение.
+                        </div>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="hidden" name="is_active" value="0">
+                        <input class="form-check-input" type="checkbox" name="is_active" value="1" id="isActive"
+                               {% if not user or user.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="isActive">Активен</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block action_bar %}
+<div class="action-bar">
+    <div class="action-bar-left">
+        {% if user %}{{ user.username }}{% else %}Новый пользователь{% endif %}
+    </div>
+    <a class="btn btn-outline-secondary" href="/users">Отмена</a>
+    {% if user %}
+    <button type="button" class="btn btn-outline-danger" onclick="deleteUser()">Удалить</button>
+    {% endif %}
+    <button type="submit" form="userForm" class="btn btn-primary">
+        <i class="bi bi-save"></i> Сохранить
+    </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if user %}
+async function deleteUser() {
+    if (!confirm('Удалить пользователя {{ user.username }}?')) return;
+    const response = await fetch('/users/{{ user.id }}/delete', { method: 'POST' });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) {
+        ncdcToast('Удалено');
+        window.location.href = '/users';
+    } else {
+        ncdcToast(data.detail || 'Ошибка', 'danger');
+    }
+}
+{% endif %}
+
+document.getElementById('userForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    try {
+        const response = await fetch(this.action, { method: 'POST', body: formData });
+        const result = await response.json().catch(() => ({}));
+        if (response.ok && result.status === 'success') {
+            ncdcToast(result.message || 'Сохранено');
+            window.location.href = '/users';
+        } else {
+            ncdcToast(result.detail || 'Ошибка сохранения', 'danger');
+        }
+    } catch (err) {
+        ncdcToast(err.message, 'danger');
+    }
+});
+</script>
+{% endblock %}
