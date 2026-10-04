@@ -6,3 +6,4 @@ python-multipart==0.0.17
 httpx==0.28.1
 pydantic==2.10.3
 pydantic-settings==2.6.1
+itsdangerous==2.2.0
