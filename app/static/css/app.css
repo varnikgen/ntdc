@@ -282,3 +282,53 @@ body {
   margin-bottom: 0.75rem;
   opacity: 0.5;
 }
+
+
+/* Brand logos */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.sidebar-brand-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+.sidebar-brand-word {
+  max-width: 140px;
+  max-height: 36px;
+  object-fit: contain;
+  display: block;
+}
+.sidebar-brand .brand-text h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.15;
+}
+.sidebar-brand .brand-text .brand-sub {
+  font-size: 0.62rem;
+  line-height: 1.2;
+  opacity: 0.75;
+}
+.login-brand-wrap {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+.login-brand-logo {
+  width: min(280px, 80vw);
+  height: auto;
+  object-fit: contain;
+  margin: 0 auto 0.75rem;
+  display: block;
+}
+.login-brand-icon {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin: 0 auto 0.5rem;
+  display: block;
+  border-radius: 16px;
+}
