@@ -94,8 +94,17 @@ app.add_middleware(
     same_site="lax",
     https_only=False,  # True только если весь доступ строго по HTTPS
 )
+# Session (outer) → Auth → CSRF → app
 app.middleware("http")(csrf_middleware)
 app.middleware("http")(auth_middleware)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="ncdc_session",
+    max_age=60 * 60 * 24 * 7,
+    same_site="lax",
+    https_only=False,
+)
 
 app.include_router(provisioning.router)
 app.include_router(actions.router)

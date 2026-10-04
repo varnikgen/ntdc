@@ -142,6 +142,8 @@ def logout_user(request: Request) -> None:
 def session_identity(request: Request) -> tuple[str, str] | None:
     user = request.session.get(SESSION_USER_KEY)
     role = request.session.get(SESSION_ROLE_KEY)
+    if "session" not in request.scope:
+        return None
     if user and role:
         return str(user), str(role)
     return None
