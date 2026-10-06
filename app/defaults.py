@@ -27,7 +27,7 @@ def default_global_settings() -> dict:
         "local_time.dhcp_time": 1,
         "ldap.enable": 0,
         # any = принимать Action URI (AutoP) с любого IP; пустая строка на части
-        # прошивок = никому, и тогда /servlet?key=AutoP с NCDC не доходит.
+        # прошивок = никому, и тогда /servlet?key=AutoP с NTDC не доходит.
         "features.action_uri_limit_ip": "any",
         "action_url.enable": 1,
         "action_url.registered": action_url("registered"),
@@ -42,7 +42,7 @@ def default_global_settings() -> dict:
         cfg["static.auto_provision.username"] = settings.PROVISION_USER
         cfg["static.auto_provision.password"] = settings.PROVISION_PASS
     if (settings.PHONE_WEB_PASSWORD or "").strip() and settings.PHONE_WEB_PASSWORD != "admin":
-        cfg["ncdc.phone.admin_password"] = settings.PHONE_WEB_PASSWORD.strip()
+        cfg["ntdc.phone.admin_password"] = settings.PHONE_WEB_PASSWORD.strip()
     return cfg
 
 

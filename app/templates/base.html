@@ -20,7 +20,7 @@
                     {% if lang == 'en' %}
                     <img class="sidebar-brand-word" src="/static/img/wordmark-en.png" alt="NT/DC">
                     {% else %}
-                    <img class="sidebar-brand-word" src="/static/img/wordmark-ru.png" alt="КУСТ">
+                    <img class="sidebar-brand-word" src="/static/img/wordmark-ru.png" alt="NTDC">
                     {% endif %}
                     <!-- <div class="brand-sub">{{ request.state.t.full }}</div> -->
                 </div>
@@ -86,13 +86,13 @@
         </div>
     </div>
 
-    <div class="ncdc-toast-container" id="ncdcToasts"></div>
+    <div class="ntdc-toast-container" id="ntdcToasts"></div>
 
     <script src="/static/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/app.js"></script>
     <script>
-    function ncdcCsrfToken() {
-        const match = document.cookie.split('; ').find(row => row.startsWith('ncdc_csrf='));
+    function ntdcCsrfToken() {
+        const match = document.cookie.split('; ').find(row => row.startsWith('ntdc_csrf='));
         return match ? decodeURIComponent(match.split('=')[1]) : '';
     }
     (function() {
@@ -101,14 +101,14 @@
             init = init || {};
             const headers = new Headers(init.headers || {});
             if (!headers.has('X-CSRF-Token')) {
-                headers.set('X-CSRF-Token', ncdcCsrfToken());
+                headers.set('X-CSRF-Token', ntdcCsrfToken());
             }
             init.headers = headers;
             return originalFetch(input, init);
         };
     })();
     document.body.addEventListener('htmx:configRequest', function(event) {
-        event.detail.headers['X-CSRF-Token'] = ncdcCsrfToken();
+        event.detail.headers['X-CSRF-Token'] = ntdcCsrfToken();
     });
     </script>
     {% block scripts %}{% endblock %}

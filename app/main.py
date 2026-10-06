@@ -37,7 +37,7 @@ logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
-logger = logging.getLogger("ncdc")
+logger = logging.getLogger("ntdc")
 
 
 @asynccontextmanager
@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
         n = migrate_json_to_table(_db)
         if n:
             import logging
-            logging.getLogger("ncdc").info("Migrated account_ids for %s phones", n)
+            logging.getLogger("ntdc").info("Migrated account_ids for %s phones", n)
     finally:
         _db.close()
     db = SessionLocal()
@@ -103,7 +103,7 @@ app.middleware("http")(auth_middleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
-    session_cookie="ncdc_session",
+    session_cookie="ntdc_session",
     max_age=60 * 60 * 24 * 7,  # 7 дней
     same_site="lax",
     https_only=False,  # True только если весь доступ строго по HTTPS

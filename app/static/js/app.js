@@ -1,10 +1,10 @@
 /**
- * NCDC admin helpers — offline, no external deps.
+ * NTDC admin helpers — offline, no external deps.
  */
 
-function ncdcToast(message, type) {
+function ntdcToast(message, type) {
   type = type || 'success';
-  var container = document.getElementById('ncdcToasts');
+  var container = document.getElementById('ntdcToasts');
   if (!container) return;
   var el = document.createElement('div');
   var bg = type === 'danger' ? 'text-bg-danger' : (type === 'warning' ? 'text-bg-warning' : 'text-bg-success');
@@ -30,7 +30,7 @@ function ncdcToast(message, type) {
  * @param {string} tableId  - table element id
  * @param {number[]} [cols] - column indexes to search (0-based); default all
  */
-function ncdcTableSearch(inputId, tableId, cols) {
+function ntdcTableSearch(inputId, tableId, cols) {
   var input = document.getElementById(inputId);
   var table = document.getElementById(tableId);
   if (!input || !table) return;
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Auto-wire any [data-table-search] inputs
   document.querySelectorAll('[data-table-search]').forEach(function (input) {
     var tableId = input.getAttribute('data-table-search');
-    ncdcTableSearch(input.id || input.getAttribute('id'), tableId);
+    ntdcTableSearch(input.id || input.getAttribute('id'), tableId);
   });
 });
 
@@ -75,8 +75,8 @@ document.addEventListener('DOMContentLoaded', function () {
  * Click-to-sort on tables with thead th[data-sort].
  * Optional data-sort-type="ip" | "number" | "text" (default text).
  */
-function ncdcInitSortableTables() {
-  document.querySelectorAll('table.ncdc-sortable').forEach(function (table) {
+function ntdcInitSortableTables() {
+  document.querySelectorAll('table.ntdc-sortable').forEach(function (table) {
     var headers = table.querySelectorAll('thead th[data-sort]');
     headers.forEach(function (th, idx) {
       th.style.cursor = 'pointer';
@@ -139,5 +139,5 @@ function ncdcInitSortableTables() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-  ncdcInitSortableTables();
+  ntdcInitSortableTables();
 });

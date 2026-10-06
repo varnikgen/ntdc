@@ -9,7 +9,7 @@ from app.models import Phone
 from app.config import settings
 import logging
 
-logger = logging.getLogger("ncdc.status_checker")
+logger = logging.getLogger("ntdc.status_checker")
 
 
 def update_offline_phones(db: Session, timeout_minutes: int | None = None):

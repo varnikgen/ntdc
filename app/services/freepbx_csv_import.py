@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Account
 
-logger = logging.getLogger("ncdc.freepbx_csv")
+logger = logging.getLogger("ntdc.freepbx_csv")
 
 # Нормализация transport из FreePBX / пустых значений
 _TRANSPORT_MAP = {

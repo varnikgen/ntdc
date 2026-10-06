@@ -74,7 +74,7 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 ncdc-sortable" id="phonesTable">
+            <table class="table table-hover align-middle mb-0 ntdc-sortable" id="phonesTable">
                 <thead class="table-light">
                     <tr>
                         <th>
@@ -171,11 +171,11 @@ async function deleteAllPhones() {
         const response = await fetch('/phones/delete-all', { method: 'POST' });
         const data = await response.json().catch(() => ({}));
         if (response.ok && data.status === 'success') {
-            if (typeof ncdcToast === 'function') ncdcToast(data.message || 'Удалено');
+            if (typeof ntdcToast === 'function') ntdcToast(data.message || 'Удалено');
             window.location.href = data.redirect || '/phones';
         } else {
             const msg = data.detail || data.message || ('HTTP ' + response.status);
-            if (typeof ncdcToast === 'function') ncdcToast(msg, 'danger');
+            if (typeof ntdcToast === 'function') ntdcToast(msg, 'danger');
             else alert(msg);
         }
     } catch (e) {
@@ -188,10 +188,10 @@ async function deletePhone(id, mac) {
     const response = await fetch('/phones/' + id + '/delete', { method: 'POST' });
     const data = await response.json().catch(() => ({}));
     if (response.ok && data.status === 'success') {
-        ncdcToast('Устройство удалено');
+        ntdcToast('Устройство удалено');
         window.location.reload();
     } else {
-        ncdcToast(data.detail || 'Ошибка удаления', 'danger');
+        ntdcToast(data.detail || 'Ошибка удаления', 'danger');
     }
 }
 </script>

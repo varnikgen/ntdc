@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Пользователи - NCDC{% endblock %}
+{% block title %}Пользователи - NTDC{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -96,12 +96,12 @@ async function deleteUser(id, name) {
     const response = await fetch('/users/' + id + '/delete', { method: 'POST' });
     const data = await response.json().catch(() => ({}));
     if (response.ok && data.status === 'success') {
-        ncdcToast('Пользователь удалён');
+        ntdcToast('Пользователь удалён');
         window.location.reload();
     } else {
-        ncdcToast(data.detail || 'Ошибка удаления', 'danger');
+        ntdcToast(data.detail || 'Ошибка удаления', 'danger');
     }
 }
-ncdcTableSearch('userSearch', 'usersTable');
+ntdcTableSearch('userSearch', 'usersTable');
 </script>
 {% endblock %}

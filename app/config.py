@@ -5,18 +5,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # extra="ignore": неизвестные переменные в .env не роняют старт
-    # case_sensitive=True: NCDC_ADMIN_PASS и ncdc_admin_pass — разные имена
+    # case_sensitive=True: NTDC_ADMIN_PASS и ntdc_admin_pass — разные имена
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
         case_sensitive=True,
     )
 
-    APP_NAME: str = "КУСТ"  # UI brand; EN: NTDC
+    APP_NAME: str = "NTDC"  # UI brand
     APP_VERSION: str = "0.3.0"
     DEBUG: bool = False  # True включает SQL-echo — в лог попадут SIP-пароли
 
-    DATABASE_URL: str = "sqlite:///./data/ncdc.db"
+    DATABASE_URL: str = "sqlite:///./data/ntdc.db"
 
     HOST: str = "0.0.0.0"
     PORT: int = 8000
@@ -26,8 +26,8 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = ""  # для CSRF-cookie; минимум 16 символов
 
-    NCDC_ADMIN_USER: str = "admin"
-    NCDC_ADMIN_PASS: str = ""  # пустой / из чёрного списка → отказ стартовать
+    NTDC_ADMIN_USER: str = "admin"
+    NTDC_ADMIN_PASS: str = ""  # пустой / из чёрного списка → отказ стартовать
 
     # HTTP Basic на /provision. Те же учётки пишутся в глобальный cfg,
     # чтобы трубки ходили за конфигом повторно уже с паролем.
@@ -66,14 +66,14 @@ class Settings(BaseSettings):
     def validate_security(self) -> list[str]:
         """Фатальные ошибки конфигурации. Пустой список = можно стартовать."""
         errors: list[str] = []
-        if not self.NCDC_ADMIN_PASS:
+        if not self.NTDC_ADMIN_PASS:
             errors.append(
-                "NCDC_ADMIN_PASS is not set. Copy .env.example to .env and set a strong password."
+                "NTDC_ADMIN_PASS is not set. Copy .env.example to .env and set a strong password."
             )
         # Эти значения уже светились в git — считаем их скомпрометированными.
-        if self.NCDC_ADMIN_PASS in {"ChangeMe123!", "admin", "password", "Cgtwbfkbcbn01"}:
+        if self.NTDC_ADMIN_PASS in {"ChangeMe123!", "admin", "password", "Cgtwbfkbcbn01"}:
             errors.append(
-                "NCDC_ADMIN_PASS is a known default/leaked value. Set a unique password."
+                "NTDC_ADMIN_PASS is a known default/leaked value. Set a unique password."
             )
         if not self.SECRET_KEY or len(self.SECRET_KEY) < 16:
             errors.append("SECRET_KEY must be set to a random string of at least 16 characters.")

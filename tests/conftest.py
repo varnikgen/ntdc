@@ -2,8 +2,8 @@ import os
 import tempfile
 import base64
 
-os.environ["NCDC_ADMIN_USER"] = "admin"
-os.environ["NCDC_ADMIN_PASS"] = "test-admin-pass-123"
+os.environ["NTDC_ADMIN_USER"] = "admin"
+os.environ["NTDC_ADMIN_PASS"] = "test-admin-pass-123"
 os.environ["SECRET_KEY"] = "test-secret-key-16chars"
 os.environ["PROVISION_AUTH_ENABLED"] = "true"
 os.environ["PROVISION_USER"] = "provision"
@@ -13,9 +13,9 @@ os.environ["PHONE_WEB_PASSWORD"] = "PhoneWeb-Test-1"
 os.environ["ACTION_URI_TOKEN"] = "test-token-123"
 os.environ["AUTO_ENROLL"] = "true"
 os.environ["DEBUG"] = "false"
-os.environ["PUBLIC_BASE_URL"] = "https://ncdc.test"
+os.environ["PUBLIC_BASE_URL"] = "https://ntdc.test"
 
-_tmp = tempfile.NamedTemporaryFile(prefix="ncdc-test-", suffix=".db", delete=False)
+_tmp = tempfile.NamedTemporaryFile(prefix="ntdc-test-", suffix=".db", delete=False)
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp.name}"
 
 import pytest
@@ -47,7 +47,7 @@ def admin_session(client):
     assert r.status_code in (302, 303), r.text
     # CSRF из cookie после GET
     client.get("/login")
-    token = client.cookies.get("ncdc_csrf")
+    token = client.cookies.get("ntdc_csrf")
     headers = {}
     if token:
         headers["X-CSRF-Token"] = token
@@ -79,7 +79,7 @@ def operator_session(client):
     )
     assert r.status_code in (302, 303), r.text
     client.get("/")
-    token = client.cookies.get("ncdc_csrf")
+    token = client.cookies.get("ntdc_csrf")
     headers = {}
     if token:
         headers["X-CSRF-Token"] = token

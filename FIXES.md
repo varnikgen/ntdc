@@ -51,7 +51,7 @@ Constant-time `hmac.compare_digest` + lockout 5 неудач / 60 секунд �
 
 ### 1.6 CSRF
 
-Все POST админки требуют заголовок `X-CSRF-Token` , равный cookie `ncdc_csrf` . В `base.html` `fetch` и HTMX подставляют его сами. `/provision` и `/actions` исключены.
+Все POST админки требуют заголовок `X-CSRF-Token` , равный cookie `ntdc_csrf` . В `base.html` `fetch` и HTMX подставляют его сами. `/provision` и `/actions` исключены.
 
 ### 1.7 AutoP `verify=False`
 
@@ -127,7 +127,7 @@ Unchecked checkbox не уходит в POST. Теперь перед кажды
 
 * Хост больше не зашит: nginx server_name _; , URL — PUBLIC_BASE_URL .
 * .env.example обязателен, .env в .gitignore .
-* scripts/gen-ssl.sh пишет nginx/ssl/ncdc.crt + ncdc.key .
+* scripts/gen-ssl.sh пишет nginx/ssl/ntdc.crt + ntdc.key .
 * Есть и Dockerfile , и Containerfile .
 * Healthcheck на /health .
 * Контейнер от uid 1000, pip без --trusted-host .
@@ -137,7 +137,7 @@ Unchecked checkbox не уходит в POST. Теперь перед кажды
 
 ## Порядок обновления с 0.1.x
 
-1. Остановить контейнеры, снять копию data/ncdc.db .
+1. Остановить контейнеры, снять копию data/ntdc.db .
 2. Выложить новый код.
 3. Создать .env из .env.example (новые секреты, не старые из git).
 4. mkdir -p data nginx/ssl && sh scripts/gen-ssl.sh your.hostname .

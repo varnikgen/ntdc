@@ -16,7 +16,7 @@ from app.models import Phone, Account, GlobalConfig, PhoneModel
 from app.phone_accounts import set_account_ids
 from app.security import normalize_mac, detect_model_from_ua, KNOWN_MODELS
 
-logger = logging.getLogger("ncdc.cfg_import")
+logger = logging.getLogger("ntdc.cfg_import")
 
 LINEKEY_RE = re.compile(r"^linekey\.(\d+)\.(\w+)$")
 # expansion_module.1.key.2.type / .line / .value / .label / .extension

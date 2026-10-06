@@ -13,7 +13,7 @@ from app.config import settings
 from app.database import SessionLocal
 from app.models import AuditLog, Phone
 
-logger = logging.getLogger("ncdc.maintenance")
+logger = logging.getLogger("ntdc.maintenance")
 
 # Ограничение параллельных опросов веб-UI трубок
 _PROBE_CONCURRENCY = 10

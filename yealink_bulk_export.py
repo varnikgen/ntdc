@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Массовый экспорт конфигов Yealink. Пишет index.json для импорта в NCDC.
+"""Массовый экспорт конфигов Yealink. Пишет index.json для импорта в NTDC.
 
 Примеры:
   python yealink_bulk_export.py 10.30.18.0/24 -u admin -p admin -o ./configs

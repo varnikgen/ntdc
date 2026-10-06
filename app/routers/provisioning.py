@@ -22,7 +22,7 @@ from app.services.config_builder import build_phone_config, build_model_config
 from app.services.audit import log_action
 
 router = APIRouter(prefix="/provision", tags=["provisioning"])
-logger = logging.getLogger("ncdc.provision")
+logger = logging.getLogger("ntdc.provision")
 
 
 def _require_cfg_auth(request: Request) -> None:
@@ -33,7 +33,7 @@ def _require_cfg_auth(request: Request) -> None:
     raise HTTPException(
         status_code=401,
         detail="Provisioning credentials required",
-        headers={"WWW-Authenticate": 'Basic realm="NCDC Provisioning"'},
+        headers={"WWW-Authenticate": 'Basic realm="NTDC Provisioning"'},
     )
 
 

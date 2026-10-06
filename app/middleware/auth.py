@@ -1,8 +1,8 @@
 """Авторизация админки: сессия (cookie) + опционально HTTP Basic.
 
-1) Session cookie ncdc_session (логин через /login)
+1) Session cookie ntdc_session (логин через /login)
 2) HTTP Basic — для скриптов/API (если передан заголовок)
-3) Fallback-учётка из .env (NCDC_ADMIN_*)
+3) Fallback-учётка из .env (NTDC_ADMIN_*)
 
 Провижининг (/provision) — отдельно через provision_authorized().
 """
@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 from app.config import settings
 from app.security import constant_time_equals, LoginThrottle, verify_password
 
-logger = logging.getLogger("ncdc.auth")
+logger = logging.getLogger("ntdc.auth")
 
 ADMIN_EXCLUDED_PREFIXES = (
     "/provision",
@@ -93,7 +93,7 @@ def _unauthorized(request: Request, detail: str = "Unauthorized"):
     return PlainTextResponse(
         detail,
         status_code=status.HTTP_401_UNAUTHORIZED,
-        headers={"WWW-Authenticate": 'Basic realm="NCDC Admin Panel"'},
+        headers={"WWW-Authenticate": 'Basic realm="NTDC Admin Panel"'},
     )
 
 
@@ -169,10 +169,10 @@ def authenticate(username: str, password: str) -> tuple[str, str] | None:
         if is_active and verify_password(password, password_hash):
             return username, role
 
-    user_ok = constant_time_equals(username, settings.NCDC_ADMIN_USER)
-    pass_ok = constant_time_equals(password, settings.NCDC_ADMIN_PASS)
-    if user_ok and pass_ok and settings.NCDC_ADMIN_PASS:
-        return settings.NCDC_ADMIN_USER, "admin"
+    user_ok = constant_time_equals(username, settings.NTDC_ADMIN_USER)
+    pass_ok = constant_time_equals(password, settings.NTDC_ADMIN_PASS)
+    if user_ok and pass_ok and settings.NTDC_ADMIN_PASS:
+        return settings.NTDC_ADMIN_USER, "admin"
 
     return None
 

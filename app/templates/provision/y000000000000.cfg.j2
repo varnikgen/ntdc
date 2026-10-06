@@ -1,4 +1,4 @@
-{# Action URL без кавычек. Ключи ncdc.* — только для UI, в cfg не пишем. #}
+{# Action URL без кавычек. Ключи ntdc.* — только для UI, в cfg не пишем. #}
 #!version:1.0.0.1
 ##File header "#!version:1.0.0.1" can not be edited or deleted.##
 
@@ -6,7 +6,7 @@
 ##                        GLOBAL SETTINGS                                            ##
 #######################################################################################
 {% for key, value in config.global.items() %}
-{% if value is not none and value != '' and not key.startswith('action_url.') and not key.startswith('ncdc.') %}
+{% if value is not none and value != '' and not key.startswith('action_url.') and not key.startswith('ntdc.') %}
 {{ key }} = {{ value | cfg }}
 {% endif %}
 {% endfor %}
@@ -14,8 +14,8 @@
 #######################################################################################
 ##                        Phone Web UI (local users)                                 ##
 #######################################################################################
-{% set admin_pw = config.global.get('ncdc.phone.admin_password') %}
-{% set user_pw = config.global.get('ncdc.phone.user_password') %}
+{% set admin_pw = config.global.get('ntdc.phone.admin_password') %}
+{% set user_pw = config.global.get('ntdc.phone.user_password') %}
 {% if admin_pw and admin_pw != 'admin' %}
 security.user_password = {{ ('admin:' ~ admin_pw) | cfg }}
 {% endif %}

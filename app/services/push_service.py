@@ -10,7 +10,7 @@ import httpx
 from app.config import settings
 from app.models import Phone
 
-logger = logging.getLogger("ncdc.push_service")
+logger = logging.getLogger("ntdc.push_service")
 
 
 async def trigger_phone_autop(db: Session, phone_id: int) -> tuple[bool, str]:

@@ -11,7 +11,7 @@ from app.security import normalize_mac
 from app.phone_accounts import get_account_ids
 from app.services.linekeys import render_linekeys_block, render_expkeys_block
 
-logger = logging.getLogger("ncdc.config_builder")
+logger = logging.getLogger("ntdc.config_builder")
 
 
 def build_phone_config(db, mac: str) -> dict:
@@ -100,7 +100,7 @@ def build_phone_config(db, mac: str) -> dict:
 
 def build_model_config(model_obj, identifier: str) -> dict:
     """Контекст для model.cfg.j2. Неизвестная модель → пустые поля, не 404:
-    трубка всё равно запросит $PN.cfg, даже если линейки нет в NCDC.
+    трубка всё равно запросит $PN.cfg, даже если линейки нет в NTDC.
     """
     config = {
         "model_name": identifier.upper(),

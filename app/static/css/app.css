@@ -1,12 +1,12 @@
 :root {
-  --ncdc-sidebar-w: 240px;
-  --ncdc-topbar-h: 56px;
-  --ncdc-actionbar-h: 64px;
-  --ncdc-sidebar-bg: #1e293b;
-  --ncdc-sidebar-hover: #334155;
-  --ncdc-accent: #3b82f6;
-  --ncdc-bg: #f1f5f9;
-  --ncdc-card-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06);
+  --ntdc-sidebar-w: 240px;
+  --ntdc-topbar-h: 56px;
+  --ntdc-actionbar-h: 64px;
+  --ntdc-sidebar-bg: #1e293b;
+  --ntdc-sidebar-hover: #334155;
+  --ntdc-accent: #3b82f6;
+  --ntdc-bg: #f1f5f9;
+  --ntdc-card-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 html, body {
@@ -15,7 +15,7 @@ html, body {
 }
 
 body {
-  background: var(--ncdc-bg);
+  background: var(--ntdc-bg);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -29,9 +29,9 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: var(--ncdc-sidebar-w);
+  width: var(--ntdc-sidebar-w);
   height: 100vh;
-  background: var(--ncdc-sidebar-bg);
+  background: var(--ntdc-sidebar-bg);
   color: #e2e8f0;
   display: flex;
   flex-direction: column;
@@ -88,14 +88,14 @@ body {
 }
 
 .sidebar a:hover {
-  background: var(--ncdc-sidebar-hover);
+  background: var(--ntdc-sidebar-hover);
   color: #fff;
 }
 
 .sidebar a.active {
   background: rgba(59, 130, 246, 0.15);
   color: #fff;
-  border-left-color: var(--ncdc-accent);
+  border-left-color: var(--ntdc-accent);
   font-weight: 600;
 }
 
@@ -115,7 +115,7 @@ body {
 }
 
 .main-area {
-  margin-left: var(--ncdc-sidebar-w);
+  margin-left: var(--ntdc-sidebar-w);
   flex: 1;
   min-width: 0;
   display: flex;
@@ -131,7 +131,7 @@ body {
 /* ---- Sticky action bar ---- */
 .action-bar {
   position: fixed;
-  left: var(--ncdc-sidebar-w);
+  left: var(--ntdc-sidebar-w);
   right: 0;
   bottom: 0;
   z-index: 1020;
@@ -144,7 +144,7 @@ body {
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
-  min-height: var(--ncdc-actionbar-h);
+  min-height: var(--ntdc-actionbar-h);
 }
 
 .action-bar .action-bar-left {
@@ -156,7 +156,7 @@ body {
 /* ---- Cards & tables ---- */
 .card {
   border: none;
-  box-shadow: var(--ncdc-card-shadow);
+  box-shadow: var(--ntdc-card-shadow);
   border-radius: 0.5rem;
 }
 
@@ -174,7 +174,7 @@ body {
 .stat-card {
   border: none;
   border-radius: 0.5rem;
-  box-shadow: var(--ncdc-card-shadow);
+  box-shadow: var(--ntdc-card-shadow);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -206,7 +206,7 @@ body {
 }
 
 .search-wrap input:focus {
-  border-color: var(--ncdc-accent);
+  border-color: var(--ntdc-accent);
   box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.15);
 }
 
@@ -241,7 +241,7 @@ body {
 .badge-status-offline { background: #64748b; }
 
 /* ---- Toast / flash ---- */
-.ncdc-toast-container {
+.ntdc-toast-container {
   position: fixed;
   top: 1rem;
   right: 1rem;

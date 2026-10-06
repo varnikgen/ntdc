@@ -1,9 +1,8 @@
-# КУСТ / NTDC
+# NTDC
 
-**КУСТ** — Конфигуратор устройств сетевой телефонии  
 **NTDC** — Network Telephony Device Configurator
+*(Конфигуратор устройств сетевой телефонии)*
 
-> Прежнее кодовое имя репозитория: КУСТ (внутренние пути `ncdc-*` сохранены).
 
 Провижининг и управление телефонами **Yealink** (SIP): boot/cfg, Action URL, AutoP, SIP-аккаунты, импорт bulk-export.
 
@@ -21,12 +20,12 @@
 ## Быстрый старт (Podman)
 
 ```bash
-cp .env.example .env   # задать SECRET_KEY, КУСТ_ADMIN_*, PROVISION_*
+cp .env.example .env   # задать SECRET_KEY, NTDC_ADMIN_*, PROVISION_*
 podman-compose up --build -d
 # UI: http://host:8080/login
 ```
 
-Переменные — в `.env` / `app/config.py` (`КУСТ_ADMIN_USER/PASS`, `SECRET_KEY`, `PROVISION_*`, `PUBLIC_BASE_URL`, `ACTION_URI_TOKEN`, …).
+Переменные — в `.env` / `app/config.py` (`NTDC_ADMIN_USER/PASS`, `SECRET_KEY`, `PROVISION_*`, `PUBLIC_BASE_URL`, `ACTION_URI_TOKEN`, …).
 
 ## Роли
 
@@ -36,7 +35,7 @@ podman-compose up --build -d
 | operator | Dashboard, устройства, SIP-аккаунты |
 | viewer | то же, только GET |
 
-Пользователи сервиса: **Система → Пользователи** (admin). Fallback: `КУСТ_ADMIN_*` из `.env`.
+Пользователи сервиса: **Система → Пользователи** (admin). Fallback: `NTDC_ADMIN_*` из `.env`.
 
 ## Импорт cfg
 

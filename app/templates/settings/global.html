@@ -168,7 +168,7 @@
 {% block scripts %}
 
 <script>
-window.NCDC_I18N = {
+window.NTDC_I18N = {
   autoOn: {{ request.state.t("settings.auto_enroll_on")|tojson }},
   autoOff: {{ request.state.t("settings.auto_enroll_disabled")|tojson }},
   until: {{ request.state.t("settings.until")|tojson }},
@@ -194,7 +194,7 @@ function clearParam(key) {
 document.querySelectorAll('.form-check-input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', function() {
         const label = this.nextElementSibling;
-        if (label) label.textContent = this.checked ? ((window.NCDC_I18N||{}).enabled||'Enabled') : ((window.NCDC_I18N||{}).disabled||'Disabled');
+        if (label) label.textContent = this.checked ? ((window.NTDC_I18N||{}).enabled||'Enabled') : ((window.NTDC_I18N||{}).disabled||'Disabled');
     });
 });
 
@@ -224,15 +224,15 @@ async function checkAutoEnrollStatus() {
     if (data.enabled) {
         statusDiv.innerHTML = `
             <div class="alert alert-success">
-                <strong>${(window.NCDC_I18N||{}).autoOn||'ENABLED'}</strong><br>
-                ${(window.NCDC_I18N||{}).until||'Until'}: ${data.until}<br>
-                ${(window.NCDC_I18N||{}).remaining||'Remaining'}: ${data.remaining_minutes}
+                <strong>${(window.NTDC_I18N||{}).autoOn||'ENABLED'}</strong><br>
+                ${(window.NTDC_I18N||{}).until||'Until'}: ${data.until}<br>
+                ${(window.NTDC_I18N||{}).remaining||'Remaining'}: ${data.remaining_minutes}
             </div>
         `;
     } else {
         statusDiv.innerHTML = `
             <div class="alert alert-secondary">
-                <strong>${(window.NCDC_I18N||{}).autoOff||'DISABLED'}</strong>
+                <strong>${(window.NTDC_I18N||{}).autoOff||'DISABLED'}</strong>
             </div>
         `;
     }

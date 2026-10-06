@@ -63,8 +63,8 @@ PARAM_LABELS = {
     "voice.ring_vol": "Ring Volume",
     "directory.edit_default_input_method": "Directory Input Method",
     "action_url.show_msgbox": "Show Action URL Message Box",
-    "ncdc.phone.admin_password": "Phone admin password",
-    "ncdc.phone.user_password": "Phone user password",
+    "ntdc.phone.admin_password": "Phone admin password",
+    "ntdc.phone.user_password": "Phone user password",
 }
 
 SELECT_OPTIONS = {
@@ -152,8 +152,8 @@ PARAM_GROUPS = {
         "static.auto_provision.weekly.enable",
     ],
     "Phone Web UI": [
-        "ncdc.phone.admin_password",
-        "ncdc.phone.user_password",
+        "ntdc.phone.admin_password",
+        "ntdc.phone.user_password",
     ],
     "Action URI": [
         "features.action_uri_limit_ip",
@@ -221,8 +221,8 @@ INT_PARAMS = {
 PASSWORD_PARAMS = {
     "ldap.password",
     "static.auto_provision.password",
-    "ncdc.phone.admin_password",
-    "ncdc.phone.user_password",
+    "ntdc.phone.admin_password",
+    "ntdc.phone.user_password",
 }
 
 
@@ -273,8 +273,8 @@ PARAM_LABELS_RU = {
     'local_time.summer_time': 'Летнее время',
     'local_time.time_zone': 'Часовой пояс',
     'local_time.time_zone_name': 'Имя часового пояса',
-    'ncdc.phone.admin_password': 'Пароль admin веб-UI телефона',
-    'ncdc.phone.user_password': 'Пароль user веб-UI телефона',
+    'ntdc.phone.admin_password': 'Пароль admin веб-UI телефона',
+    'ntdc.phone.user_password': 'Пароль user веб-UI телефона',
     'phone_setting.backgrounds': 'Фоны экрана',
     'phone_setting.custom_headset_mode_status': 'Режим гарнитуры',
     'phone_setting.mute_power_led_flash_enable': 'Мигание LED при Mute',

@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app.security import constant_time_equals, new_token
 
-CSRF_COOKIE = "ncdc_csrf"
+CSRF_COOKIE = "ntdc_csrf"
 CSRF_HEADER = "X-CSRF-Token"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
 EXCLUDED_PREFIXES = (

@@ -25,8 +25,8 @@ def provision_http_url(filename: str = "", with_auth: bool = False) -> str:
 def web_password_lines(global_settings: dict | None = None) -> list[str]:
     """security.user_password = admin:… и user:… (одинаковый ключ, две строки)."""
     data = global_settings or {}
-    admin_pw = (data.get("ncdc.phone.admin_password") or settings.PHONE_WEB_PASSWORD or "").strip()
-    user_pw = (data.get("ncdc.phone.user_password") or "").strip()
+    admin_pw = (data.get("ntdc.phone.admin_password") or settings.PHONE_WEB_PASSWORD or "").strip()
+    user_pw = (data.get("ntdc.phone.user_password") or "").strip()
     user_name = (settings.PHONE_WEB_USER or "admin").strip() or "admin"
     lines = []
     if admin_pw and admin_pw != "admin":

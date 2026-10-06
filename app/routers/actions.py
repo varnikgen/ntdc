@@ -17,7 +17,7 @@ from app.phone_ip import pick_phone_ip, reported_phone_ip, request_src_ip
 from app.services.audit import log_action
 
 router = APIRouter(prefix="/actions", tags=["actions"])
-logger = logging.getLogger("ncdc.actions")
+logger = logging.getLogger("ntdc.actions")
 
 DND_ON_EVENTS = {"dnd_on", "dndon", "DNDOn"}
 DND_OFF_EVENTS = {"dnd_off", "dndoff", "DNDOff"}

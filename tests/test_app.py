@@ -42,15 +42,15 @@ def test_provision_cfg_open_when_bootstrap(client):
     body = r.text
     assert "token=test-token-123&mac=" in body
     assert "security.user_password = admin:PhoneWeb-Test-1" in body
-    assert "ncdc.phone.admin_password" not in body
+    assert "ntdc.phone.admin_password" not in body
 
 
 def test_global_user_passwords_in_cfg(client, admin_headers):
     r = client.post(
         "/settings/global",
         data={
-            "param_ncdc.phone.admin_password": "Adm#1n-Web",
-            "param_ncdc.phone.user_password": "Us3r-Web",
+            "param_ntdc.phone.admin_password": "Adm#1n-Web",
+            "param_ntdc.phone.user_password": "Us3r-Web",
         },
         headers=admin_headers,
     )
@@ -59,7 +59,7 @@ def test_global_user_passwords_in_cfg(client, admin_headers):
     body = r.text
     assert "security.user_password = admin:Adm#1n-Web" in body or 'security.user_password = "admin:Adm#1n-Web"' in body
     assert "security.user_password = user:Us3r-Web" in body
-    assert "ncdc.phone." not in body
+    assert "ntdc.phone." not in body
 
 
 def test_provision_global_with_auth(client):
@@ -85,7 +85,7 @@ def test_ldap_dn_not_quoted(client, admin_headers):
         data={
             "param_ldap.enable": "1",
             "param_ldap.host": "10.30.1.10",
-            "param_ldap.user": "cn=ncdc,ou=users,dc=bsmuk,dc=ru",
+            "param_ldap.user": "cn=ntdc,ou=users,dc=bsmuk,dc=ru",
             "param_ldap.base": "dc=bsmuk,dc=ru",
             "param_ldap.password": "Ldap#Pass",
             "param_ldap.name_attr": "cn sn",
@@ -95,8 +95,8 @@ def test_ldap_dn_not_quoted(client, admin_headers):
     assert r.status_code == 200
     r = client.get("/provision/y000000000000.cfg", headers=_basic("provision", "test-prov-pass"))
     body = r.text
-    assert "ldap.user = cn=ncdc,ou=users,dc=bsmuk,dc=ru" in body
-    assert 'ldap.user = "cn=ncdc' not in body
+    assert "ldap.user = cn=ntdc,ou=users,dc=bsmuk,dc=ru" in body
+    assert 'ldap.user = "cn=ntdc' not in body
     assert "ldap.base = dc=bsmuk,dc=ru" in body
     assert "ldap.name_attr = cn sn" in body
     # # в пароле — иначе cfg обрежется комментарием
@@ -302,5 +302,5 @@ def test_dss_keys_not_glued_and_unused_disabled():
 def test_quote_cfg_does_not_quote_urls():
     from app.security import quote_cfg
 
-    url = "https://ncdc.test/actions/?token=abc&mac=$mac&event=registered"
+    url = "https://ntdc.test/actions/?token=abc&mac=$mac&event=registered"
     assert quote_cfg(url) == url

@@ -1,16 +1,16 @@
-# ncdc слушает 8000 внутри сети. Наружу — nginx.
+# ntdc слушает 8000 внутри сети. Наружу — nginx.
 # На Windows/Podman Desktop порты 80/443 часто НЕ попадают на localhost
-# (живут в WSL-ВМ) → ERR_CONNECTION_REFUSED на ncdc-dev.bsmuk.ru.
+# (живут в WSL-ВМ) → ERR_CONNECTION_REFUSED на ntdc-dev.bsmuk.ru.
 # Поэтому дублируем 8080/8443 и публикуем uvicorn :8000 для проверки.
 
 version: "3.8"
 
 services:
-  ncdc:
+  ntdc:
     build:
       context: .
       network: host
-    container_name: ncdc-app
+    container_name: ntdc-app
     ports:
       - "8000:8000"
     volumes:
@@ -30,11 +30,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - ncdc-network
+      - ntdc-network
 
   nginx:
     image: nginx:alpine
-    container_name: ncdc-nginx
+    container_name: ntdc-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -44,11 +44,11 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z
       - ./nginx/ssl:/etc/nginx/ssl:ro,Z
     depends_on:
-      - ncdc
+      - ntdc
     restart: unless-stopped
     networks:
-      - ncdc-network
+      - ntdc-network
 
 networks:
-  ncdc-network:
+  ntdc-network:
     driver: bridge

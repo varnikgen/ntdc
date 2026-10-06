@@ -9,7 +9,7 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_DEFAULT_TIMEOUT=60 \
     PYTHONDONTWRITEBYTECODE=1
 
-RUN useradd --create-home --uid 1000 ncdc
+RUN useradd --create-home --uid 1000 ntdc
 
 COPY requirements.txt .
 COPY vendor/ ./vendor/
@@ -29,11 +29,11 @@ RUN set -e; \
 
 COPY . .
 RUN mkdir -p /app/data /app/app/static \
-    && chown -R ncdc:ncdc /app
+    && chown -R ntdc:ntdc /app
 
-USER ncdc
+USER ntdc
 
-ENV DATABASE_URL=sqlite:///./data/ncdc.db \
+ENV DATABASE_URL=sqlite:///./data/ntdc.db \
     HOST=0.0.0.0 \
     PORT=8000
 

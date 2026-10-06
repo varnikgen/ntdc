@@ -1,4 +1,4 @@
-"""Простая i18n: ru / en, выбор через cookie ncdc_lang или ?lang=."""
+"""Простая i18n: ru / en, выбор через cookie ntdc_lang или ?lang=."""
 
 from __future__ import annotations
 
@@ -6,12 +6,12 @@ from typing import Any
 
 SUPPORTED = ("ru", "en")
 DEFAULT_LANG = "ru"
-COOKIE_NAME = "ncdc_lang"
+COOKIE_NAME = "ntdc_lang"
 
 # short_name / full_name per language
 BRAND = {
     "ru": {
-        "short": "КУСТ",
+        "short": "NTDC",
         "full": "Конфигуратор устройств сетевой телефонии",
     },
     "en": {

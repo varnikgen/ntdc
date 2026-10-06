@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{% if user %}Редактировать {{ user.username }}{% else %}Новый пользователь{% endif %} - NCDC{% endblock %}
+{% block title %}{% if user %}Редактировать {{ user.username }}{% else %}Новый пользователь{% endif %} - NTDC{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -80,10 +80,10 @@ async function deleteUser() {
     const response = await fetch('/users/{{ user.id }}/delete', { method: 'POST' });
     const data = await response.json().catch(() => ({}));
     if (response.ok) {
-        ncdcToast('Удалено');
+        ntdcToast('Удалено');
         window.location.href = '/users';
     } else {
-        ncdcToast(data.detail || 'Ошибка', 'danger');
+        ntdcToast(data.detail || 'Ошибка', 'danger');
     }
 }
 {% endif %}
@@ -95,13 +95,13 @@ document.getElementById('userForm').addEventListener('submit', async function(e)
         const response = await fetch(this.action, { method: 'POST', body: formData });
         const result = await response.json().catch(() => ({}));
         if (response.ok && result.status === 'success') {
-            ncdcToast(result.message || 'Сохранено');
+            ntdcToast(result.message || 'Сохранено');
             window.location.href = '/users';
         } else {
-            ncdcToast(result.detail || 'Ошибка сохранения', 'danger');
+            ntdcToast(result.detail || 'Ошибка сохранения', 'danger');
         }
     } catch (err) {
-        ncdcToast(err.message, 'danger');
+        ntdcToast(err.message, 'danger');
     }
 });
 </script>

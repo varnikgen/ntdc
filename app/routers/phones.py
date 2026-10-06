@@ -23,7 +23,7 @@ from app.services.push_service import trigger_phone_autop
 from app.services.audit import log_action, admin_user
 
 router = APIRouter(prefix="/phones", tags=["phones"])
-logger = logging.getLogger("ncdc.phones")
+logger = logging.getLogger("ntdc.phones")
 
 
 _PHONE_SORT = {

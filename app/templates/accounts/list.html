@@ -35,7 +35,7 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 ncdc-sortable" id="accountsTable">
+            <table class="table table-hover align-middle mb-0 ntdc-sortable" id="accountsTable">
                 <thead class="table-light">
                     <tr>
                         <th data-sort="0">Имя</th>
@@ -133,11 +133,11 @@ async function deleteAllAccounts() {
         const response = await fetch('/accounts/delete-all', { method: 'POST' });
         const data = await response.json().catch(() => ({}));
         if (response.ok && data.status === 'success') {
-            if (typeof ncdcToast === 'function') ncdcToast(data.message || 'Удалено');
+            if (typeof ntdcToast === 'function') ntdcToast(data.message || 'Удалено');
             window.location.href = data.redirect || '/accounts';
         } else {
             const msg = data.detail || data.message || ('HTTP ' + response.status);
-            if (typeof ncdcToast === 'function') ncdcToast(msg, 'danger');
+            if (typeof ntdcToast === 'function') ntdcToast(msg, 'danger');
             else alert(msg);
         }
     } catch (e) {
