@@ -58,6 +58,8 @@ def run_migrations() -> None:
         ("phone_models", "ieee802_1x_md5_password", "ALTER TABLE phone_models ADD COLUMN ieee802_1x_md5_password VARCHAR"),
         ("phones", "admin_username", "ALTER TABLE phones ADD COLUMN admin_username VARCHAR(64) DEFAULT 'admin'"),
         ("phones", "admin_password", "ALTER TABLE phones ADD COLUMN admin_password VARCHAR(64) DEFAULT 'admin'"),
+        ("phones", "override_exp_keys", "ALTER TABLE phones ADD COLUMN override_exp_keys BOOLEAN DEFAULT 0"),
+        ("phones", "custom_exp_keys", "ALTER TABLE phones ADD COLUMN custom_exp_keys JSON"),
     ]
 
     with engine.begin() as conn:

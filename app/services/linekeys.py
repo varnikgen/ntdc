@@ -69,3 +69,54 @@ def render_linekeys_block(dss_keys: list | None, max_keys: int) -> str:
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_expkeys_block(exp_keys: list | None) -> str:
+    """Блок expansion_module.X.key.Y.* для cfg.
+
+    Пустой список / None → пустая строка (заводская раскладка EXP).
+    Ключи: module (1-based), key (1-based), type, account→line, value, extension, label.
+    """
+    if not exp_keys:
+        return ""
+
+    # (module, key) -> raw
+    by_mk: dict[tuple[int, int], dict] = {}
+    for raw in exp_keys:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            module = int(raw.get("module") or 1)
+            key = int(raw.get("key") or 0)
+        except (TypeError, ValueError):
+            continue
+        if module < 1 or key < 1:
+            continue
+        by_mk[(module, key)] = raw
+
+    if not by_mk:
+        return ""
+
+    lines: list[str] = []
+    for module, key in sorted(by_mk):
+        raw = by_mk[(module, key)]
+        try:
+            ktype = int(raw.get("type") or 0)
+        except (TypeError, ValueError):
+            ktype = 0
+        try:
+            account = int(raw.get("account") if raw.get("account") not in (None, "") else 1)
+        except (TypeError, ValueError):
+            account = 1
+        if ktype == 0:
+            account = 0
+
+        prefix = f"expansion_module.{module}.key.{key}"
+        lines.append(f"{prefix}.type = {ktype}")
+        lines.append(f"{prefix}.line = {account}")
+        lines.append(f"{prefix}.value = {quote_cfg(raw.get('value') or '')}")
+        lines.append(f"{prefix}.extension = {quote_cfg(raw.get('extension') or '')}")
+        lines.append(f"{prefix}.label = {quote_cfg(raw.get('label') or '')}")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"

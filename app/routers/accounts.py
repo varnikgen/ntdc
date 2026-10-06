@@ -194,6 +194,23 @@ async def update_account(request: Request, account_id: int, db: Session = Depend
     return {"status": "success", "message": f"Аккаунт {account.name} обновлен", "redirect": "/accounts"}
 
 
+
+@router.post("/delete-all")
+async def delete_all_accounts(request: Request, db: Session = Depends(get_db)):
+    """Удалить все SIP-аккаунты (для тестов / сброса стенда)."""
+    from app.models import PhoneAccount
+    count = db.query(Account).count()
+    db.query(PhoneAccount).delete()
+    # очистить primary/JSON на телефонах
+    for phone in db.query(Phone).all():
+        phone.primary_account_id = None
+        phone.account_ids = []
+    db.query(Account).delete()
+    db.commit()
+    log_action(db, "DELETE_ALL_ACCOUNTS", "Account", None, admin_user(request), f"Deleted all accounts ({count})")
+    return {"status": "success", "message": f"Удалено аккаунтов: {count}", "redirect": "/accounts"}
+
+
 @router.post("/{account_id}/delete")
 async def delete_account(request: Request, account_id: int, db: Session = Depends(get_db)):
     account = db.query(Account).filter(Account.id == account_id).first()

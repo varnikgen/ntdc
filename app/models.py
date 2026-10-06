@@ -75,6 +75,9 @@ class Phone(Base):
 
     override_dss_keys = Column(Boolean, default=False)
     custom_dss_keys = Column(JSON, nullable=True)
+    # Expansion module (EXP): expansion_module.X.key.Y.*
+    override_exp_keys = Column(Boolean, default=False)
+    custom_exp_keys = Column(JSON, nullable=True)  # list[{module,key,type,account,value,extension,label}]
     custom_config = Column(JSON, default=dict)  # индивидуальные ключи → $MAC.cfg
 
     model = relationship("PhoneModel", back_populates="phones")

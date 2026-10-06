@@ -25,6 +25,9 @@
             <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#importCsvModal">
                 <i class="bi bi-file-earmark-arrow-up"></i> {{ request.state.t('accounts.import_csv') }}
             </button>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteAllAccounts()" title="Удалить все аккаунты">
+                <i class="bi bi-trash"></i> Удалить все
+            </button>
             <a href="/accounts/new" class="btn btn-primary btn-sm">
                 <i class="bi bi-plus-lg"></i> {{ request.state.t('common.add') }}
             </a>

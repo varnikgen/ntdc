@@ -182,6 +182,12 @@ async def edit_phone(request: Request, phone_id: int, db: Session = Depends(get_
         inherit_from_account = False
 
     phone_account_count = len(get_account_ids(db, phone))
+    current_exp = []
+    if phone.override_exp_keys and phone.custom_exp_keys:
+        current_exp = sorted(
+            phone.custom_exp_keys,
+            key=lambda x: (x.get("module", 1), x.get("key", 0)),
+        )
     return request.app.state.templates.TemplateResponse(
         "phones/edit.html",
         {
@@ -190,6 +196,7 @@ async def edit_phone(request: Request, phone_id: int, db: Session = Depends(get_
             "accounts": accounts,
             "models": models,
             "current_dss": current_dss,
+            "current_exp": current_exp,
             "inherit_from_account": inherit_from_account,
             "phone_account_count": phone_account_count,
         },
@@ -237,6 +244,12 @@ async def update_phone(request: Request, phone_id: int, db: Session = Depends(ge
     else:
         phone.custom_dss_keys = None  # снова наследуем от аккаунта
 
+    phone.override_exp_keys = form.get("override_exp_keys") in ("on", "1", "true")
+    if phone.override_exp_keys:
+        phone.custom_exp_keys = parse_json_field(form.get("custom_exp_keys"), [])
+    else:
+        phone.custom_exp_keys = None
+
     phone.custom_config = parse_json_field(form.get("custom_config"), {})
 
     db.commit()
@@ -276,6 +289,17 @@ async def push_autop(request: Request, phone_id: int, db: Session = Depends(get_
     return {"status": "success" if pushed else "error", "message": detail, "autop": pushed}
 
 
+
+@router.post("/delete-all")
+async def delete_all_phones(request: Request, db: Session = Depends(get_db)):
+    """Удалить все устройства (для тестов / сброса стенда)."""
+    count = db.query(Phone).count()
+    db.query(Phone).delete()
+    db.commit()
+    log_action(db, "DELETE_ALL_PHONES", "Phone", None, admin_user(request), f"Deleted all phones ({count})")
+    return {"status": "success", "message": f"Удалено устройств: {count}", "redirect": "/phones"}
+
+
 @router.post("/{phone_id}/delete")
 async def delete_phone(request: Request, phone_id: int, db: Session = Depends(get_db)):
     phone = db.query(Phone).filter(Phone.id == phone_id).first()
@@ -308,6 +332,29 @@ async def get_dss_keys(request: Request, phone_id: int, db: Session = Depends(ge
         {
             "request": request,
             "current_dss": current_dss,
+            "phone_account_count": phone_account_count,
+        },
+    )
+
+
+@router.get("/{phone_id}/exp-keys")
+async def get_exp_keys(request: Request, phone_id: int, db: Session = Depends(get_db)):
+    """Фрагмент таблицы expansion module для HTMX."""
+    phone = db.query(Phone).filter(Phone.id == phone_id).first()
+    if not phone:
+        raise HTTPException(status_code=404, detail="Phone not found")
+    current_exp = []
+    if phone.override_exp_keys and phone.custom_exp_keys:
+        current_exp = sorted(
+            phone.custom_exp_keys,
+            key=lambda x: (x.get("module", 1), x.get("key", 0)),
+        )
+    phone_account_count = len(get_account_ids(db, phone))
+    return request.app.state.templates.TemplateResponse(
+        "phones/_exp_keys_table.html",
+        {
+            "request": request,
+            "current_exp": current_exp,
             "phone_account_count": phone_account_count,
         },
     )

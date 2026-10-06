@@ -64,7 +64,11 @@
             <a href="/phones/?per_page={{ pagination.per_page if pagination else 25 }}" class="btn btn-sm btn-link">{{ request.state.t('common.reset') }}</a>
             {% endif %}
         </form>
-        <a href="/phones/new" class="btn btn-primary btn-sm">
+        
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteAllPhones()" title="Удалить все устройства">
+                <i class="bi bi-trash"></i> Удалить все
+            </button>
+            <a href="/phones/new" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg"></i> {{ request.state.t('common.add') }}
         </a>
     </div>

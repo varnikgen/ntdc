@@ -9,7 +9,7 @@ from app.config import settings
 from app.models import Phone, Account, PhoneModel, GlobalConfig
 from app.security import normalize_mac
 from app.phone_accounts import get_account_ids
-from app.services.linekeys import render_linekeys_block
+from app.services.linekeys import render_linekeys_block, render_expkeys_block
 
 logger = logging.getLogger("ncdc.config_builder")
 
@@ -81,6 +81,12 @@ def build_phone_config(db, mac: str) -> dict:
 
     max_keys = model.max_dss_keys if model and model.max_dss_keys else 27
     final_config["linekeys_block"] = render_linekeys_block(dss_keys, max_keys)
+
+    exp_keys = []
+    if getattr(phone, "override_exp_keys", False) and phone.custom_exp_keys:
+        exp_keys = list(phone.custom_exp_keys)
+    final_config["exp_keys"] = exp_keys
+    final_config["expkeys_block"] = render_expkeys_block(exp_keys)
 
     web_user = (phone.admin_username or settings.PHONE_WEB_USER or "admin").strip() or "admin"
     web_pass = (phone.admin_password or "").strip()

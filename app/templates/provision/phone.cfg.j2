@@ -44,3 +44,6 @@ security.user_password = {{ (config.web_user ~ ':' ~ config.web_password) | cfg 
 ##                        DSS Keys (Line Keys)                                       ##
 #######################################################################################
 {{ config.linekeys_block }}
+
+#!expansion module keys
+{{ config.expkeys_block }}
