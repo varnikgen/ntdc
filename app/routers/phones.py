@@ -293,7 +293,10 @@ async def push_autop(request: Request, phone_id: int, db: Session = Depends(get_
 @router.post("/delete-all")
 async def delete_all_phones(request: Request, db: Session = Depends(get_db)):
     """Удалить все устройства (для тестов / сброса стенда)."""
+    from app.models import PhoneAccount
     count = db.query(Phone).count()
+    # сначала связи, иначе SQLite FK может заблокировать bulk delete
+    db.query(PhoneAccount).delete()
     db.query(Phone).delete()
     db.commit()
     log_action(db, "DELETE_ALL_PHONES", "Phone", None, admin_user(request), f"Deleted all phones ({count})")

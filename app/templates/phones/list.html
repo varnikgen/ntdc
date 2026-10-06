@@ -164,6 +164,25 @@
 
 {% block scripts %}
 <script>
+async function deleteAllPhones() {
+    if (!confirm('Удалить ВСЕ устройства? Это действие нельзя отменить.')) return;
+    if (!confirm('Точно удалить все phones?')) return;
+    try {
+        const response = await fetch('/phones/delete-all', { method: 'POST' });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data.status === 'success') {
+            if (typeof ncdcToast === 'function') ncdcToast(data.message || 'Удалено');
+            window.location.href = data.redirect || '/phones';
+        } else {
+            const msg = data.detail || data.message || ('HTTP ' + response.status);
+            if (typeof ncdcToast === 'function') ncdcToast(msg, 'danger');
+            else alert(msg);
+        }
+    } catch (e) {
+        alert(String(e));
+    }
+}
+
 async function deletePhone(id, mac) {
     if (!confirm('Удалить устройство ' + mac + '?')) return;
     const response = await fetch('/phones/' + id + '/delete', { method: 'POST' });

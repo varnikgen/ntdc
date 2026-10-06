@@ -126,7 +126,27 @@
 
 {% block scripts %}
 <script>
+async function deleteAllAccounts() {
+    if (!confirm('Удалить ВСЕ SIP-аккаунты? Связи с телефонами будут сброшены.')) return;
+    if (!confirm('Точно удалить все accounts?')) return;
+    try {
+        const response = await fetch('/accounts/delete-all', { method: 'POST' });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data.status === 'success') {
+            if (typeof ncdcToast === 'function') ncdcToast(data.message || 'Удалено');
+            window.location.href = data.redirect || '/accounts';
+        } else {
+            const msg = data.detail || data.message || ('HTTP ' + response.status);
+            if (typeof ncdcToast === 'function') ncdcToast(msg, 'danger');
+            else alert(msg);
+        }
+    } catch (e) {
+        alert(String(e));
+    }
+}
+
 async function importFreepbxCsv() {
+
     const fileInput = document.getElementById('csvFile');
     const serverInput = document.getElementById('csvSipServer');
     const portInput = document.getElementById('csvSipPort');
