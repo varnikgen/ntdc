@@ -21,9 +21,14 @@
             <a href="/accounts/?per_page={{ pagination.per_page if pagination else 25 }}" class="btn btn-sm btn-link">{{ request.state.t('common.reset') }}</a>
             {% endif %}
         </form>
-        <a href="/accounts/new" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-lg"></i> {{ request.state.t('common.add') }}
-        </a>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#importCsvModal">
+                <i class="bi bi-file-earmark-arrow-up"></i> {{ request.state.t('accounts.import_csv') }}
+            </button>
+            <a href="/accounts/new" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg"></i> {{ request.state.t('common.add') }}
+            </a>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -77,4 +82,95 @@
     </div>
     {% include "partials/pagination.html" %}
 </div>
+
+{# --- Modal: импорт CSV FreePBX --- #}
+<div class="modal fade" id="importCsvModal" tabindex="-1" aria-labelledby="importCsvModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importCsvModalLabel">
+                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>
+                    {{ request.state.t('accounts.import_csv_title') }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">{{ request.state.t('accounts.import_csv_help') }}</p>
+                <div class="mb-3">
+                    <label class="form-label" for="csvFile">CSV</label>
+                    <input type="file" class="form-control" id="csvFile" accept=".csv,text/csv">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="csvSipServer">{{ request.state.t('accounts.sip_server') }}</label>
+                    <input type="text" class="form-control" id="csvSipServer" placeholder="pbx.example.com" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="csvSipPort">{{ request.state.t('accounts.sip_port') }}</label>
+                    <input type="number" class="form-control" id="csvSipPort" value="5060" min="1" max="65535">
+                </div>
+                <div id="csvImportResult" class="mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ request.state.t('common.cancel') }}</button>
+                <button type="button" class="btn btn-success" id="csvImportBtn" onclick="importFreepbxCsv()">
+                    <i class="bi bi-upload"></i> {{ request.state.t('accounts.import_csv_btn') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function importFreepbxCsv() {
+    const fileInput = document.getElementById('csvFile');
+    const serverInput = document.getElementById('csvSipServer');
+    const portInput = document.getElementById('csvSipPort');
+    const resultEl = document.getElementById('csvImportResult');
+    const btn = document.getElementById('csvImportBtn');
+
+    if (!fileInput.files || !fileInput.files[0]) {
+        resultEl.innerHTML = '<div class="alert alert-warning py-2 mb-0">Выберите CSV-файл</div>';
+        return;
+    }
+    const sipServer = (serverInput.value || '').trim();
+    if (!sipServer) {
+        resultEl.innerHTML = '<div class="alert alert-warning py-2 mb-0">Укажите SIP Server</div>';
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    fd.append('sip_server', sipServer);
+    fd.append('sip_port', portInput.value || '5060');
+
+    btn.disabled = true;
+    resultEl.innerHTML = '<div class="text-muted small">Импорт…</div>';
+    try {
+        const r = await fetch('/accounts/import-csv', { method: 'POST', body: fd });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            resultEl.innerHTML = `<div class="alert alert-danger py-2 mb-0">${data.detail || r.statusText}</div>`;
+            return;
+        }
+        const res = data.result || {};
+        let html = `<div class="alert alert-success py-2 mb-0">${data.message || 'OK'}</div>`;
+        if (res.errors && res.errors.length) {
+            html += '<ul class="small text-warning mt-2 mb-0">' +
+                res.errors.slice(0, 10).map(e => `<li>${e}</li>`).join('') +
+                (res.errors.length > 10 ? `<li>…ещё ${res.errors.length - 10}</li>` : '') +
+                '</ul>';
+        }
+        resultEl.innerHTML = html;
+        if (data.redirect) {
+            setTimeout(() => { window.location.href = data.redirect; }, 1200);
+        }
+    } catch (err) {
+        resultEl.innerHTML = `<div class="alert alert-danger py-2 mb-0">${err}</div>`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+</script>
 {% endblock %}

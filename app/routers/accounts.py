@@ -14,6 +14,7 @@ from app.pagination import parse_page_args, paginate, page_url, ALLOWED_PER_PAGE
 from app.formutil import parse_json_list
 from app.models import Account, Phone
 from app.services.audit import log_action, admin_user
+from app.services.freepbx_csv_import import import_accounts_from_csv
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -96,6 +97,62 @@ async def create_account(request: Request, db: Session = Depends(get_db)):
     db.refresh(account)
     log_action(db, "CREATE_ACCOUNT", "Account", account.id, admin_user(request), f"Created account {account.name}")
     return {"status": "success", "message": f"Аккаунт {account.name} создан", "redirect": "/accounts"}
+
+
+@router.post("/import-csv")
+async def import_csv(request: Request, db: Session = Depends(get_db)):
+    """Импорт SIP-аккаунтов из CSV-выгрузки FreePBX Extensions.
+
+    Form fields:
+      file       — CSV (обязателен)
+      sip_server — SIP-сервер для всех строк (обязателен)
+      sip_port   — порт (default 5060)
+    """
+    form = await request.form()
+    upload = form.get("file")
+    if upload is None or not getattr(upload, "filename", None):
+        raise HTTPException(status_code=400, detail="Файл CSV не передан")
+
+    sip_server = (form.get("sip_server") or "").strip()
+    if not sip_server:
+        raise HTTPException(status_code=400, detail="sip_server обязателен")
+
+    try:
+        sip_port = int(form.get("sip_port") or 5060)
+    except (TypeError, ValueError):
+        sip_port = 5060
+
+    raw = await upload.read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("cp1251", errors="replace")
+
+    result = import_accounts_from_csv(db, text, sip_server=sip_server, sip_port=sip_port)
+
+    log_action(
+        db,
+        "IMPORT_ACCOUNTS_CSV",
+        "Account",
+        None,
+        admin_user(request),
+        (
+            f"FreePBX CSV: total={result['total']} created={result['created']} "
+            f"updated={result['updated']} skipped={result['skipped']} "
+            f"server={sip_server}:{sip_port}"
+        ),
+    )
+
+    msg = (
+        f"Импорт: создано {result['created']}, обновлено {result['updated']}, "
+        f"пропущено {result['skipped']} (всего строк: {result['total']})"
+    )
+    return {
+        "status": "success" if not result["errors"] or result["created"] or result["updated"] else "error",
+        "message": msg,
+        "result": result,
+        "redirect": "/accounts",
+    }
 
 
 @router.get("/{account_id}/edit")
