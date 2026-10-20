@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ request.state.csrf_token or '' }}">
     <title>{% block title %}{{ request.state.t.short }}{% endblock %}</title>
     <link rel="icon" type="image/png" href="/static/img/favicon-32.png">
     <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
@@ -93,18 +94,24 @@
     <script src="/static/js/app.js"></script>
     <script>
     function ncdcCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) return meta.content;
         const match = document.cookie.split('; ').find(row => row.startsWith('ncdc_csrf='));
-        return match ? decodeURIComponent(match.split('=')[1]) : '';
+        return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : '';
     }
     (function() {
         const originalFetch = window.fetch;
         window.fetch = function(input, init) {
             init = init || {};
             const headers = new Headers(init.headers || {});
-            if (!headers.has('X-CSRF-Token')) {
-                headers.set('X-CSRF-Token', ncdcCsrfToken());
+            const tok = ncdcCsrfToken();
+            if (tok && !headers.has('X-CSRF-Token')) {
+                headers.set('X-CSRF-Token', tok);
             }
             init.headers = headers;
+            if (init.credentials === undefined) {
+                init.credentials = 'same-origin';
+            }
             return originalFetch(input, init);
         };
     })();
