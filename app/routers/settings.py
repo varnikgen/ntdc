@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from app.database import get_db
 from app.models import GlobalConfig, PhoneModel
 from app.services.audit import log_action, admin_user
+from app.services.cfg_import import purge_never_global_keys
 from app.settings_schema import (
     PARAM_LABELS,
     SELECT_OPTIONS,
@@ -84,6 +85,10 @@ async def global_config(request: Request, db: Session = Depends(get_db)):
     lang = getattr(request.state, "lang", "ru") or "ru"
     global_cfg = db.query(GlobalConfig).first()
     settings_map = global_cfg.settings if global_cfg and global_cfg.settings else {}
+    settings_map, purged = purge_never_global_keys(settings_map)
+    if purged and global_cfg is not None:
+        global_cfg.settings = settings_map
+        db.commit()
     grouped_settings = _grouped(settings_map, lang)
 
     known_params = set()
@@ -146,6 +151,7 @@ async def update_global_config(request: Request, db: Session = Depends(get_db)):
                 changed_params.append(f"{param_name}: {cfg_settings[param_name]} → [deleted]")
                 del cfg_settings[param_name]
 
+    cfg_settings, _ = purge_never_global_keys(cfg_settings)
     global_cfg.settings = cfg_settings  # перепривязка dict — иначе JSON-колонка не увидит diff
     db.commit()
     db.refresh(global_cfg)

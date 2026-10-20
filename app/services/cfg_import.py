@@ -2,7 +2,7 @@
 
 Логика: парсим ключи, вычитаем совпадающее с global_config,
 account.* превращаем в объекты Account (ищем по username или создаём),
-linekey.* → DSS, expansion_module.* → exp keys,
+linekey.* превращаем в custom_dss_keys,
 остаток — в phone.custom_config.
 """
 from __future__ import annotations
@@ -16,11 +16,9 @@ from app.models import Phone, Account, GlobalConfig, PhoneModel
 from app.phone_accounts import set_account_ids
 from app.security import normalize_mac, detect_model_from_ua, KNOWN_MODELS
 
-logger = logging.getLogger("ntdc.cfg_import")
+logger = logging.getLogger("ncdc.cfg_import")
 
 LINEKEY_RE = re.compile(r"^linekey\.(\d+)\.(\w+)$")
-# expansion_module.1.key.2.type / .line / .value / .label / .extension
-EXPKEY_RE = re.compile(r"^expansion_module\.(\d+)\.key\.(\d+)\.(\w+)$")
 ACCOUNT_RE = re.compile(
     r"^account\.(\d+)\.(enable|label|display_name|auth_name|user_name|password|"
     r"sip_server\.1\.(address|port|transport_type)|"
@@ -34,6 +32,35 @@ IMPORT_IGNORE_PREFIXES = (
     "features.action_uri",
     "account.",  # обрабатываем отдельно
 )
+
+# Никогда не пишем в Global Config (только на телефоне / через веб-UI трубки).
+NEVER_GLOBAL_PREFIXES = (
+    "expansion_module.",
+    "distinctive_ring_tones.",
+    "linekey.",
+    "programablekey.",
+    "programkey.",
+    "softkey.",
+    "expansion_key.",
+    "xml_browser_dial_key.",
+    "hotdesking.",
+    "multicast.",
+)
+
+
+def is_never_global_key(key: str) -> bool:
+    if not key:
+        return False
+    return any(key.startswith(p) for p in NEVER_GLOBAL_PREFIXES)
+
+
+def purge_never_global_keys(settings: dict | None) -> tuple[dict, list[str]]:
+    """Удаляет из словаря ключи, которым не место в Global Config."""
+    settings = dict(settings or {})
+    removed = [k for k in settings if is_never_global_key(k)]
+    for k in removed:
+        settings.pop(k, None)
+    return settings, removed
 
 # Маппинг transport_type: cfg (0-3) -> DB (udp/tcp/tls)
 TRANSPORT_MAP = {"0": "udp", "1": "tcp", "2": "tls", "3": "naptr"}
@@ -146,16 +173,16 @@ def find_or_create_account(db: Session, raw: dict) -> Account:
 
 
 def split_personal(parsed: dict, global_settings: dict):
-    """Возвращает (custom_config, dss_keys, exp_keys). Account.* уже обработан отдельно."""
+    """Возвращает (custom_config, dss_keys). Account.* уже обработан отдельно."""
     custom = {}
     for key, value in parsed.items():
-        if key.startswith(IMPORT_IGNORE_PREFIXES) or LINEKEY_RE.match(key) or EXPKEY_RE.match(key):
+        if key.startswith(IMPORT_IGNORE_PREFIXES) or LINEKEY_RE.match(key):
             continue
         g = global_settings.get(key)
         if g is not None and str(g) == str(value):
             continue
         custom[key] = value
-    return custom, extract_dss_keys(parsed), extract_exp_keys(parsed)
+    return custom, extract_dss_keys(parsed)
 
 
 
@@ -193,41 +220,6 @@ def extract_dss_keys(parsed: dict) -> list[dict]:
             "label": f.get("label", "") or "",
         })
     return dss
-
-
-def extract_exp_keys(parsed: dict) -> list[dict]:
-    """expansion_module.M.key.K.* → список для phone.custom_exp_keys."""
-    buckets: dict = {}
-    for key, value in parsed.items():
-        m = EXPKEY_RE.match(key)
-        if not m:
-            continue
-        module, kn, field = int(m.group(1)), int(m.group(2)), m.group(3)
-        buckets.setdefault((module, kn), {"module": module, "key": kn})[field] = value
-
-    exp = []
-    for (_mod, _kn), f in sorted(buckets.items()):
-        try:
-            ktype = int(f.get("type") or 0)
-        except (TypeError, ValueError):
-            ktype = 0
-        if ktype == 0:
-            continue
-        acc_raw = f.get("line", "1")
-        try:
-            account = int(acc_raw)
-        except (TypeError, ValueError):
-            account = 1
-        exp.append({
-            "module": f["module"],
-            "key": f["key"],
-            "type": ktype,
-            "account": account,
-            "value": f.get("value", "") or "",
-            "extension": f.get("extension", "") or "",
-            "label": f.get("label", "") or "",
-        })
-    return exp
 
 
 def apply_dss_to_account(db: Session, account_id: int | None, dss: list[dict]) -> bool:
@@ -273,8 +265,8 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
                 primary_id = acc.id
             accounts_imported += 1
 
-    # 2. Импортируем custom_config, DSS и Expansion Module
-    custom, dss, exp = split_personal(parsed, global_settings)
+    # 2. Импортируем custom_config и DSS
+    custom, dss = split_personal(parsed, global_settings)
 
     # 3. Создаём или обновляем телефон
     phone = db.query(Phone).filter(Phone.mac.ilike(mac)).first()
@@ -295,12 +287,6 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
     else:
         phone.custom_dss_keys = None
         phone.override_dss_keys = False
-    if exp:
-        phone.custom_exp_keys = exp
-        phone.override_exp_keys = True
-    else:
-        phone.custom_exp_keys = None
-        phone.override_exp_keys = False
     resolved_model = resolve_model_name(db, None, filename, parsed)
     if resolved_model:
         phone.model_name = resolved_model
@@ -312,8 +298,8 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
     db.refresh(phone)
 
     logger.info(
-        "Imported %s: mac=%s created=%s custom=%d dss=%d exp=%d accounts=%d model=%s",
-        filename, mac, created, len(custom), len(dss), len(exp), accounts_imported, phone.model_name,
+        "Imported %s: mac=%s created=%s custom=%d dss=%d accounts=%d model=%s",
+        filename, mac, created, len(custom), len(dss), accounts_imported, phone.model_name,
     )
     return {
         "file": filename, "ok": True, "mac": mac,
@@ -432,6 +418,12 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
         db.add(g)
         db.commit()
     global_settings = dict(g.settings or {})
+    # Вычищаем из Global мусор от прошлых импортов (expansion_module, ringer, …)
+    global_settings, purged = purge_never_global_keys(global_settings)
+    if purged:
+        g.settings = global_settings
+        db.commit()
+        logger.info("Purged %d non-global keys from Global Config", len(purged))
 
     # Остаток каждого файла: без account.*, linekey.* и игнорируемых префиксов
     remainders = []
@@ -440,29 +432,32 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
             k: v for k, v in parsed.items()
             if not k.startswith(IMPORT_IGNORE_PREFIXES)
             and not LINEKEY_RE.match(k)
-            and not EXPKEY_RE.match(k)
             and v != ""                      # пустые значения информации не несут
         }
         remainders.append(rem)
 
-    # 1. Продвижение общих ключей в Global Config
+    # 1. Продвижение общих ключей в Global Config (не device-UI ключи)
     promoted, conflicts = [], []
     if promote_common and remainders:
         common = {
             k: v for k, v in remainders[0].items()
-            if all(r.get(k) == v for r in remainders)
+            if not is_never_global_key(k)
+            and all(r.get(k) == v for r in remainders)
         }
         for k, v in common.items():
+            if is_never_global_key(k):
+                continue
             cur = global_settings.get(k)
             if cur is None:
                 global_settings[k] = v
                 promoted.append(k)
             elif str(cur) != str(v):
                 conflicts.append(f"{k}: global={cur}, файл={v} (оставлено персонально)")
-        if promoted:
+        if promoted or purged:
             g.settings = global_settings
             db.commit()
-            logger.info("Promoted %d common keys to Global Config: %s", len(promoted), promoted)
+            if promoted:
+                logger.info("Promoted %d common keys to Global Config: %s", len(promoted), promoted)
 
     # 2. Персональный импорт каждого файла
     for (filename, mac, parsed), rem in zip(parsed_all, remainders):
@@ -481,9 +476,8 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
 
         # Дифференцируем остаток против global (уже с promoted) и model
         custom, _ = _diff_remainder(rem, global_settings, model_settings, parsed)
-        # linekey.* / expansion_module.* исключены из rem — берём из полного parsed
+        # linekey.* исключены из rem — DSS всегда из полного parsed
         dss = extract_dss_keys(parsed)
-        exp = extract_exp_keys(parsed)
 
         phone = db.query(Phone).filter(Phone.mac.ilike(mac)).first()
         created = phone is None
@@ -502,12 +496,6 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
         else:
             phone.custom_dss_keys = None
             phone.override_dss_keys = False
-        if exp:
-            phone.custom_exp_keys = exp
-            phone.override_exp_keys = True
-        else:
-            phone.custom_exp_keys = None
-            phone.override_exp_keys = False
         resolved_model = resolve_model_name(db, model_name, filename, parsed)
         if resolved_model:
             phone.model_name = resolved_model
@@ -521,7 +509,7 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
         db.refresh(phone)
         report.append({
             "file": filename, "ok": True, "mac": mac, "created": created,
-            "custom_keys": len(custom), "dss_keys": len(dss), "exp_keys": len(exp),
+            "custom_keys": len(custom), "dss_keys": len(dss),
             "accounts": accounts_imported,
             "model": phone.model_name,
             "ip": phone.ip_address,
@@ -530,11 +518,11 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
     ok = sum(1 for r in report if r.get("ok"))
     return {
         "status": "success", "imported": ok, "total": len(report),
-        "report": report, "promoted": promoted, "conflicts": conflicts,
+        "report": report, "promoted": promoted, "conflicts": conflicts, "purged": purged,
     }
 
 def _diff_remainder(rem: dict, global_settings: dict, model_settings: dict, parsed: dict):
-    """Оставляет в custom только то, чего нет ни в global, ни в model; linekey/exp → отдельно."""
+    """Оставляет в custom только то, чего нет ни в global, ни в model; linekey -> dss."""
     custom = {}
     linekeys = {}
     for key, value in rem.items():
@@ -548,8 +536,6 @@ def _diff_remainder(rem: dict, global_settings: dict, model_settings: dict, pars
         if lk:
             n, field = int(lk.group(1)), lk.group(2)
             linekeys.setdefault(n, {"line": n})[field] = value
-            continue
-        if EXPKEY_RE.match(key):
             continue
         custom[key] = value
 
