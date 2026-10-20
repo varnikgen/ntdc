@@ -9,9 +9,9 @@ from app.config import settings
 from app.models import Phone, Account, PhoneModel, GlobalConfig
 from app.security import normalize_mac
 from app.phone_accounts import get_account_ids
-from app.services.linekeys import render_linekeys_block, render_expkeys_block
+from app.services.linekeys import render_linekeys_block
 
-logger = logging.getLogger("ntdc.config_builder")
+logger = logging.getLogger("ncdc.config_builder")
 
 
 def build_phone_config(db, mac: str) -> dict:
@@ -82,25 +82,25 @@ def build_phone_config(db, mac: str) -> dict:
     max_keys = model.max_dss_keys if model and model.max_dss_keys else 27
     final_config["linekeys_block"] = render_linekeys_block(dss_keys, max_keys)
 
-    exp_keys = []
-    if getattr(phone, "override_exp_keys", False) and phone.custom_exp_keys:
-        exp_keys = list(phone.custom_exp_keys)
-    final_config["exp_keys"] = exp_keys
-    final_config["expkeys_block"] = render_expkeys_block(exp_keys)
-
     web_user = (phone.admin_username or settings.PHONE_WEB_USER or "admin").strip() or "admin"
     web_pass = (phone.admin_password or "").strip()
     if not web_pass or web_pass == "admin":
-        web_pass = (settings.PHONE_WEB_PASSWORD or "").strip()
+        # Global Config UI → ncdc.phone.admin_password, иначе .env PHONE_WEB_PASSWORD
+        web_pass = (
+            (global_settings.get("ncdc.phone.admin_password") or "").strip()
+            or (settings.PHONE_WEB_PASSWORD or "").strip()
+        )
+    if web_pass == "admin":
+        web_pass = ""
     final_config["web_user"] = web_user
-    final_config["web_password"] = web_pass if web_pass and web_pass != "admin" else ""
+    final_config["web_password"] = web_pass
 
     return final_config
 
 
 def build_model_config(model_obj, identifier: str) -> dict:
     """Контекст для model.cfg.j2. Неизвестная модель → пустые поля, не 404:
-    трубка всё равно запросит $PN.cfg, даже если линейки нет в NTDC.
+    трубка всё равно запросит $PN.cfg, даже если линейки нет в NCDC.
     """
     config = {
         "model_name": identifier.upper(),

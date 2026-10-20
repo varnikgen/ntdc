@@ -37,13 +37,13 @@ account.{{ acc.index }}.codec.2.priority = 2
 ##                        Web UI password                                            ##
 #######################################################################################
 {% if config.web_user and config.web_password %}
+static.security.user_name.admin = {{ config.web_user | cfg }}
+static.security.user_password = {{ (config.web_user ~ ':' ~ config.web_password) | cfg }}
 security.user_password = {{ (config.web_user ~ ':' ~ config.web_password) | cfg }}
+security.password_use_default.enable = 0
 {% endif %}
 
 #######################################################################################
 ##                        DSS Keys (Line Keys)                                       ##
 #######################################################################################
 {{ config.linekeys_block }}
-
-#!expansion module keys
-{{ config.expkeys_block }}
