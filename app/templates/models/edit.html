@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{% if model %}Edit Model: {{ model.name }}{% else %}New Model{% endif %} - NTDC{% endblock %}
+{% block title %}{% if model %}Edit Model: {{ model.name }}{% else %}New Model{% endif %} - NCDC{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -153,28 +153,16 @@ document.getElementById('ieee802_1x_enable').addEventListener('change', function
     document.getElementById('dot1xSettings').style.display = this.checked ? 'block' : 'none';
 });
 
-document.getElementById('modelForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const jsonTextarea = document.querySelector('textarea[name="default_config"]');
-    try {
-        JSON.parse(jsonTextarea.value || '{}');
-    } catch (err) {
-        alert('Invalid JSON in Default Model Configuration: ' + err.message);
-        return;
-    }
-    const formData = new FormData(this);
-    try {
-        const response = await fetch(this.action, { method: 'POST', body: formData });
-        const result = await response.json();
-        if (response.ok) {
-            window.location.href = result.redirect || '/models';
-        } else {
-            alert('Error: ' + (result.detail || 'Unknown error'));
-        }
-    } catch (error) {
-        alert('Network error: ' + error.message);
-    }
-});
+function collectModelConfig() {
+    const cfg = {};
+    document.querySelectorAll('#modelConfigContainer .cfg-row').forEach(row => {
+        const key = row.querySelector('.cfg-key')?.value?.trim();
+        const val = row.querySelector('.cfg-val')?.value ?? '';
+        if (!key) return;
+        cfg[key] = /^\d+$/.test(val) ? parseInt(val, 10) : val;
+    });
+    return cfg;
+}
 
 function addModelCfgRow() {
     const wrap = document.getElementById('modelConfigContainer');
@@ -190,19 +178,24 @@ function addModelCfgRow() {
     wrap.appendChild(div);
 }
 
-// Перед отправкой формы сериализуем строки в JSON (числа — как числа)
-document.addEventListener('submit', function (e) {
+document.getElementById('modelForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
     const hidden = document.getElementById('defaultConfigJson');
-    if (!hidden || !e.target.contains(hidden)) return;
-
-    const cfg = {};
-    document.querySelectorAll('#modelConfigContainer .cfg-row').forEach(row => {
-        const key = row.querySelector('.cfg-key')?.value?.trim();
-        const val = row.querySelector('.cfg-val')?.value ?? '';
-        if (!key) return;
-        cfg[key] = /^\d+$/.test(val) ? parseInt(val, 10) : val;
-    });
-    hidden.value = JSON.stringify(cfg);
+    if (hidden) {
+        hidden.value = JSON.stringify(collectModelConfig());
+    }
+    const formData = new FormData(this);
+    try {
+        const response = await fetch(this.action, { method: 'POST', body: formData });
+        const result = await response.json();
+        if (response.ok) {
+            window.location.href = result.redirect || '/models';
+        } else {
+            alert('Error: ' + (result.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Network error: ' + error.message);
+    }
 });
 
 {% if model %}
