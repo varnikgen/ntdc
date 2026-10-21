@@ -4,6 +4,8 @@ name совпадает с Yealink $PN и именем файла $PN.cfg — п
 его нельзя переименовать (readonly в UI, в update name не трогаем).
 Удаление блокируется, пока модель назначена хотя бы одному телефону.
 """
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -85,7 +87,11 @@ async def edit_model(request: Request, model_id: int, db: Session = Depends(get_
     model = db.query(PhoneModel).filter(PhoneModel.id == model_id).first()
     if not model:
         raise HTTPException(status_code=404, detail="Модель не найдена")
-    default_config_json = json.dumps(model.default_config, indent=2) if model.default_config else "{}"
+    cfg = model.default_config if isinstance(model.default_config, dict) else {}
+    # шаблон итерирует .items() — гарантируем dict на объекте
+    if not isinstance(model.default_config, dict):
+        model.default_config = cfg
+    default_config_json = json.dumps(cfg, indent=2, ensure_ascii=False) if cfg else "{}"
     return request.app.state.templates.TemplateResponse(
         "models/edit.html",
         {"request": request, "model": model, "default_config_json": default_config_json},
