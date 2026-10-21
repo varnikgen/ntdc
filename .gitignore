@@ -65,3 +65,5 @@ nginx/ssl/*
 # Игнорируем любые временные файлы сертификатов
 *.cert
 *.csr
+configs/*.json
+configs/index.json
