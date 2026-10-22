@@ -1,6 +1,37 @@
 {% extends "base.html" %}
 
-{% block title %}{{ request.state.t("phones.title") }} — {{ request.state.t.short }}{% endblock %}
+{% block title %}{{ request.state.t("phones.title") }} — {{ request.state.t.short }}
+<div class="card mt-4 border-success">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">{{ request.state.t("settings.import_title") }}</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-2">{{ request.state.t("settings.import_help") }}</p>
+        <input type="file" id="importFiles" class="form-control" multiple accept=".cfg">
+        <select id="importModel" class="form-select mt-2">
+            <option value="">{{ request.state.t("settings.import_model_auto") }}</option>
+            {% for m in models or [] %}
+            <option value="{{ m.name }}">{{ m.name }}</option>
+            {% endfor %}
+        </select>
+        {% if (request.state.admin_role or 'admin') == 'admin' %}
+        <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="importPromote" checked>
+            <label class="form-check-label" for="importPromote">
+                {{ request.state.t("settings.import_promote") }}
+            </label>
+        </div>
+        {% else %}
+        <input type="hidden" id="importPromote" value="0">
+        {% endif %}
+        <button type="button" class="btn btn-success mt-2" id="importBtn" onclick="uploadConfigs()">
+            {{ request.state.t("settings.import_btn") }}
+        </button>
+        <div id="importResult" class="mt-3"></div>
+    </div>
+</div>
+
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -64,17 +95,13 @@
             <a href="/phones/?per_page={{ pagination.per_page if pagination else 25 }}" class="btn btn-sm btn-link">{{ request.state.t('common.reset') }}</a>
             {% endif %}
         </form>
-        
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteAllPhones()" title="Удалить все устройства">
-                <i class="bi bi-trash"></i> Удалить все
-            </button>
-            <a href="/phones/new" class="btn btn-primary btn-sm">
+        <a href="/phones/new" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg"></i> {{ request.state.t('common.add') }}
         </a>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 ntdc-sortable" id="phonesTable">
+            <table class="table table-hover align-middle mb-0 ncdc-sortable" id="phonesTable">
                 <thead class="table-light">
                     <tr>
                         <th>
@@ -164,22 +191,46 @@
 
 {% block scripts %}
 <script>
-async function deleteAllPhones() {
-    if (!confirm('Удалить ВСЕ устройства? Это действие нельзя отменить.')) return;
-    if (!confirm('Точно удалить все phones?')) return;
+
+async function uploadConfigs() {
+    const input = document.getElementById('importFiles');
+    const btn = document.getElementById('importBtn');
+    const res = document.getElementById('importResult');
+    if (!input.files.length) {
+        res.innerHTML = '<div class="alert alert-warning">Выберите файлы .cfg</div>';
+        return;
+    }
+    const fd = new FormData();
+    for (const f of input.files) fd.append('files', f);
+    fd.append('model', document.getElementById('importModel').value);
+    const promo = document.getElementById('importPromote');
+    fd.append('promote', (promo && (promo.checked || promo.value === '1')) ? '1' : '0');
+    btn.disabled = true;
+    res.innerHTML = '<div class="text-muted">Импорт…</div>';
     try {
-        const response = await fetch('/phones/delete-all', { method: 'POST' });
+        const response = await fetch('/phones/import-configs', { method: 'POST', body: fd });
         const data = await response.json().catch(() => ({}));
-        if (response.ok && data.status === 'success') {
-            if (typeof ntdcToast === 'function') ntdcToast(data.message || 'Удалено');
-            window.location.href = data.redirect || '/phones';
-        } else {
-            const msg = data.detail || data.message || ('HTTP ' + response.status);
-            if (typeof ntdcToast === 'function') ntdcToast(msg, 'danger');
-            else alert(msg);
+        if (!response.ok) {
+            res.innerHTML = '<div class="alert alert-danger">' + (data.detail || 'Ошибка импорта') + '</div>';
+            return;
         }
+        let html = '<div class="alert alert-success">Импортировано ' + data.imported + ' из ' + data.total + '</div>';
+        if (data.promoted && data.promoted.length) {
+            html += '<div class="small text-muted">В Global: ' + data.promoted.length + ' ключей</div>';
+        }
+        if (data.report && data.report.length) {
+            html += '<ul class="small mb-0">';
+            for (const r of data.report) {
+                html += '<li>' + (r.file || '') + ': ' + (r.ok ? ('OK mac=' + (r.mac||'')) : ('ошибка ' + (r.error||''))) + '</li>';
+            }
+            html += '</ul>';
+        }
+        res.innerHTML = html;
+        if (data.imported) setTimeout(() => location.reload(), 1200);
     } catch (e) {
-        alert(String(e));
+        res.innerHTML = '<div class="alert alert-danger">' + e.message + '</div>';
+    } finally {
+        btn.disabled = false;
     }
 }
 
@@ -188,10 +239,10 @@ async function deletePhone(id, mac) {
     const response = await fetch('/phones/' + id + '/delete', { method: 'POST' });
     const data = await response.json().catch(() => ({}));
     if (response.ok && data.status === 'success') {
-        ntdcToast('Устройство удалено');
+        ncdcToast('Устройство удалено');
         window.location.reload();
     } else {
-        ntdcToast(data.detail || 'Ошибка удаления', 'danger');
+        ncdcToast(data.detail || 'Ошибка удаления', 'danger');
     }
 }
 </script>

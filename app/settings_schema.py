@@ -23,6 +23,11 @@ PARAM_LABELS = {
     "ldap.display_name": "Display Name Format",
     "ldap.call_in_lookup": "Enable Call-In Lookup",
     "ldap.customize_label": "LDAP Label",
+    "directory_setting.ldap.enable": "LDAP in Directory",
+    "directory_setting.ldap.priority": "LDAP Directory Priority",
+    "directory_setting.local_directory.enable": "Local Directory",
+    "search_in_dialing.ldap.enable": "LDAP Search while Dialing",
+    "search_in_dialing.ldap.priority": "LDAP Dial Search Priority",
     "local_time.time_zone": "Time Zone",
     "local_time.dhcp_time": "Use DHCP Time",
     "local_time.summer_time": "Enable Summer Time",
@@ -63,8 +68,8 @@ PARAM_LABELS = {
     "voice.ring_vol": "Ring Volume",
     "directory.edit_default_input_method": "Directory Input Method",
     "action_url.show_msgbox": "Show Action URL Message Box",
-    "ntdc.phone.admin_password": "Phone admin password",
-    "ntdc.phone.user_password": "Phone user password",
+    "ncdc.phone.admin_password": "Phone admin password",
+    "ncdc.phone.user_password": "Phone user password",
 }
 
 SELECT_OPTIONS = {
@@ -134,6 +139,11 @@ PARAM_GROUPS = {
         "ldap.display_name",
         "ldap.call_in_lookup",
         "ldap.customize_label",
+        "directory_setting.ldap.enable",
+        "directory_setting.ldap.priority",
+        "directory_setting.local_directory.enable",
+        "search_in_dialing.ldap.enable",
+        "search_in_dialing.ldap.priority",
     ],
     "Time & Date": [
         "local_time.time_zone",
@@ -152,8 +162,8 @@ PARAM_GROUPS = {
         "static.auto_provision.weekly.enable",
     ],
     "Phone Web UI": [
-        "ntdc.phone.admin_password",
-        "ntdc.phone.user_password",
+        "ncdc.phone.admin_password",
+        "ncdc.phone.user_password",
     ],
     "Action URI": [
         "features.action_uri_limit_ip",
@@ -195,6 +205,9 @@ BOOLEAN_PARAMS = {
     "static.network.vlan.internet_port_enable",
     "ldap.enable",
     "ldap.call_in_lookup",
+    "directory_setting.ldap.enable",
+    "directory_setting.local_directory.enable",
+    "search_in_dialing.ldap.enable",
     "local_time.dhcp_time",
     "local_time.summer_time",
     "static.auto_provision.power_on",
@@ -216,13 +229,15 @@ INT_PARAMS = {
     "static.auto_provision.repeat.minutes",
     "voice.handset.spk_vol",
     "voice.ring_vol",
+    "directory_setting.ldap.priority",
+    "search_in_dialing.ldap.priority",
 }
 
 PASSWORD_PARAMS = {
     "ldap.password",
     "static.auto_provision.password",
-    "ntdc.phone.admin_password",
-    "ntdc.phone.user_password",
+    "ncdc.phone.admin_password",
+    "ncdc.phone.user_password",
 }
 
 
@@ -268,13 +283,18 @@ PARAM_LABELS_RU = {
     'ldap.number_filter': 'Фильтр по номеру',
     'ldap.password': 'Пароль LDAP',
     'ldap.user': 'Пользователь LDAP',
+    'directory_setting.ldap.enable': 'LDAP в справочнике',
+    'directory_setting.ldap.priority': 'Приоритет LDAP в справочнике',
+    'directory_setting.local_directory.enable': 'Локальный справочник',
+    'search_in_dialing.ldap.enable': 'LDAP при наборе',
+    'search_in_dialing.ldap.priority': 'Приоритет LDAP при наборе',
     'local_time.date_format': 'Формат даты',
     'local_time.dhcp_time': 'Время по DHCP',
     'local_time.summer_time': 'Летнее время',
     'local_time.time_zone': 'Часовой пояс',
     'local_time.time_zone_name': 'Имя часового пояса',
-    'ntdc.phone.admin_password': 'Пароль admin веб-UI телефона',
-    'ntdc.phone.user_password': 'Пароль user веб-UI телефона',
+    'ncdc.phone.admin_password': 'Пароль admin веб-UI телефона',
+    'ncdc.phone.user_password': 'Пароль user веб-UI телефона',
     'phone_setting.backgrounds': 'Фоны экрана',
     'phone_setting.custom_headset_mode_status': 'Режим гарнитуры',
     'phone_setting.mute_power_led_flash_enable': 'Мигание LED при Mute',

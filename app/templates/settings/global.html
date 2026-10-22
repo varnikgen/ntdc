@@ -125,35 +125,7 @@
     </div>
 </div>
 
-<div class="card mt-4 border-success">
-    <div class="card-header bg-success text-white">
-        <h5 class="mb-0">{{ request.state.t("settings.import_title") }}</h5>
-    </div>
-    <div class="card-body">
-        <p class="text-muted">{{ request.state.t("settings.import_help") }}</p>
 
-        <input type="file" id="importFiles" class="form-control" multiple accept=".cfg">
-
-        <select id="importModel" class="form-select mt-2">
-            <option value="">{{ request.state.t("settings.import_model_auto") }}</option>
-            {% for m in models %}
-            <option value="{{ m.name }}">{{ m.name }}</option>
-            {% endfor %}
-        </select>
-
-        <div class="form-check mt-2">
-            <input class="form-check-input" type="checkbox" id="importPromote" checked>
-            <label class="form-check-label" for="importPromote">
-                {{ request.state.t("settings.import_promote") }}
-            </label>
-        </div>
-
-        <button type="button" class="btn btn-success mt-2" id="importBtn" onclick="uploadConfigs()">
-            {{ request.state.t("settings.import_btn") }}
-        </button>
-        <div id="importResult" class="mt-3"></div>
-    </div>
-</div>
 {% endblock %}
 
 {% block action_bar %}
@@ -168,7 +140,7 @@
 {% block scripts %}
 
 <script>
-window.NTDC_I18N = {
+window.NCDC_I18N = {
   autoOn: {{ request.state.t("settings.auto_enroll_on")|tojson }},
   autoOff: {{ request.state.t("settings.auto_enroll_disabled")|tojson }},
   until: {{ request.state.t("settings.until")|tojson }},
@@ -194,7 +166,7 @@ function clearParam(key) {
 document.querySelectorAll('.form-check-input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', function() {
         const label = this.nextElementSibling;
-        if (label) label.textContent = this.checked ? ((window.NTDC_I18N||{}).enabled||'Enabled') : ((window.NTDC_I18N||{}).disabled||'Disabled');
+        if (label) label.textContent = this.checked ? ((window.NCDC_I18N||{}).enabled||'Enabled') : ((window.NCDC_I18N||{}).disabled||'Disabled');
     });
 });
 
@@ -224,15 +196,15 @@ async function checkAutoEnrollStatus() {
     if (data.enabled) {
         statusDiv.innerHTML = `
             <div class="alert alert-success">
-                <strong>${(window.NTDC_I18N||{}).autoOn||'ENABLED'}</strong><br>
-                ${(window.NTDC_I18N||{}).until||'Until'}: ${data.until}<br>
-                ${(window.NTDC_I18N||{}).remaining||'Remaining'}: ${data.remaining_minutes}
+                <strong>${(window.NCDC_I18N||{}).autoOn||'ENABLED'}</strong><br>
+                ${(window.NCDC_I18N||{}).until||'Until'}: ${data.until}<br>
+                ${(window.NCDC_I18N||{}).remaining||'Remaining'}: ${data.remaining_minutes}
             </div>
         `;
     } else {
         statusDiv.innerHTML = `
             <div class="alert alert-secondary">
-                <strong>${(window.NTDC_I18N||{}).autoOff||'DISABLED'}</strong>
+                <strong>${(window.NCDC_I18N||{}).autoOff||'DISABLED'}</strong>
             </div>
         `;
     }
@@ -261,67 +233,5 @@ checkAutoEnrollStatus();
 // Обновляем каждую минуту
 setInterval(checkAutoEnrollStatus, 60000);
 
-async function uploadConfigs() {
-    const input = document.getElementById('importFiles');
-    const btn = document.getElementById('importBtn');
-    const res = document.getElementById('importResult');
-
-    if (!input.files.length) {
-        res.innerHTML = '<div class="alert alert-warning">Выберите хотя бы один файл .cfg</div>';
-        return;
-    }
-
-    const fd = new FormData();
-    for (const f of input.files) fd.append('files', f);
-    fd.append('model', document.getElementById('importModel').value);
-    fd.append('promote', document.getElementById('importPromote').checked ? '1' : '0');
-
-    btn.disabled = true;
-    res.innerHTML = `<div class="alert alert-info">Импорт ${input.files.length} файлов...</div>`;
-
-    try {
-        const response = await fetch('/settings/import-configs', { method: 'POST', body: fd });
-        const data = await response.json();
-
-        if (response.ok) {
-            const rows = data.report.map(r =>
-                `<tr class="${r.ok ? '' : 'table-danger'}">
-                    <td>${r.file}</td>
-                    <td><code>${r.mac || '—'}</code></td>
-                    <td>${r.model || '—'}</td>
-                    <td>${r.ip || '—'}</td>
-                    <td>${r.ok ? (r.created ? 'создан' : 'обновлён') : (r.error || 'ошибка')}</td>
-                    <td>${r.custom_keys ?? ''}</td>
-                    <td>${r.dss_keys ?? ''}</td>
-                    <td>${r.accounts ?? ''}</td>
-                 </tr>`).join('');
-
-            let extra = '';
-            if (data.promoted && data.promoted.length) {
-                extra += `<div class="alert alert-info mt-2">
-                    <strong>Перенесено в Global Config (${data.promoted.length}):</strong><br>
-                    <code>${data.promoted.join(', ')}</code></div>`;
-            }
-            if (data.conflicts && data.conflicts.length) {
-                extra += `<div class="alert alert-warning mt-2">
-                    <strong>Конфликты с Global Config (оставлены персонально):</strong><br>
-                    ${data.conflicts.join('<br>')}</div>`;
-            }
-
-            res.innerHTML = `
-                <div class="alert alert-success">Импортировано ${data.imported} из ${data.total}</div>
-                <table class="table table-sm table-bordered">
-                    <thead><tr><th>Файл</th><th>MAC</th><th>Модель</th><th>IP</th><th>Результат</th><th>Ключей</th><th>DSS</th><th>Аккаунтов</th></tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>${extra}`;
-        } else {
-            res.innerHTML = `<div class="alert alert-danger">Ошибка: ${data.detail || response.status}</div>`;
-        }
-    } catch (err) {
-        res.innerHTML = `<div class="alert alert-danger">Ошибка сети: ${err.message}</div>`;
-    } finally {
-        btn.disabled = false;
-    }
-}
 </script>
 {% endblock %}
