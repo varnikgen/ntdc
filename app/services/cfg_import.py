@@ -135,26 +135,40 @@ def parse_accounts(parsed: dict) -> dict:
     return accounts
 
 
-def find_or_create_account(db: Session, raw: dict) -> Account:
-    """Ищет Account по username или создаёт новый."""
+def find_or_create_account(db: Session, raw: dict) -> Account | None:
+    """Ищет Account по username или создаёт новый. Без commit — только flush."""
     username = raw.get("user_name") or raw.get("auth_name")
     if not username:
-        # Аккаунт без логина — пропускаем
         return None
 
     acc = db.query(Account).filter(Account.username == username).first()
     if acc:
-        # Обновляем пароль, если он поменялся
         new_pass = raw.get("password")
         if new_pass and new_pass != acc.password:
             acc.password = new_pass
-            db.commit()
+        sip = raw.get("sip") or {}
+        if sip.get("address"):
+            acc.sip_server = sip["address"]
+        if sip.get("port"):
+            try:
+                acc.sip_port = int(sip["port"])
+            except (TypeError, ValueError):
+                pass
+        if sip.get("transport_type") is not None:
+            acc.transport = TRANSPORT_MAP.get(str(sip["transport_type"]), acc.transport or "udp")
+        label = raw.get("label") or raw.get("display_name")
+        if label:
+            acc.name = label
+            acc.display_name = raw.get("display_name") or label
         return acc
 
-    # Создаём новый аккаунт
     sip = raw.get("sip", {})
-    transport_cfg = sip.get("transport_type", "0")
+    transport_cfg = str(sip.get("transport_type", "0"))
     transport = TRANSPORT_MAP.get(transport_cfg, "udp")
+    try:
+        port = int(sip.get("port") or 5060)
+    except (TypeError, ValueError):
+        port = 5060
 
     acc = Account(
         name=raw.get("label") or raw.get("display_name") or username,
@@ -162,12 +176,11 @@ def find_or_create_account(db: Session, raw: dict) -> Account:
         password=raw.get("password") or "",
         display_name=raw.get("display_name") or username,
         sip_server=sip.get("address") or "",
-        sip_port=int(sip.get("port") or 5060),
+        sip_port=port,
         transport=transport,
     )
     db.add(acc)
-    db.commit()
-    db.refresh(acc)
+    db.flush()  # нужен id для phone_accounts; commit — снаружи
     logger.info("Created account: %s (id=%s)", acc.username, acc.id)
     return acc
 
@@ -233,42 +246,48 @@ def apply_dss_to_account(db: Session, account_id: int | None, dss: list[dict]) -
     db.add(acc)
     return True
 
-def import_cfg_file(db: Session, filename: str, text: str) -> dict:
-    mac = mac_from_filename(filename)
-    if not mac:
-        return {"file": filename, "ok": False, "error": "MAC не найден в имени файла"}
+def import_one_phone(
+    db: Session,
+    filename: str,
+    mac: str,
+    parsed: dict,
+    global_settings: dict,
+    model_settings: dict | None = None,
+    model_name: str | None = None,
+) -> dict:
+    """Импорт одного телефона из уже распарсенного cfg. Без commit.
 
-    parsed = parse_yealink_cfg(text)
-    if not parsed:
-        return {"file": filename, "ok": False, "error": "Файл пустой или не распознан"}
+    Возвращает dict отчёта (ok=True/False). Исключения пробрасывает наверх
+    — вызывающий делает rollback всей транзакции.
+    """
+    model_settings = model_settings or {}
 
-    g = db.query(GlobalConfig).first()
-    global_settings = g.settings if g and g.settings else {}
-
-    # 1. Импортируем аккаунты
     raw_accounts = parse_accounts(parsed)
-    account_ids = []
+    account_ids: list[int] = []
     primary_id = None
     accounts_imported = 0
 
     for line_no in sorted(raw_accounts.keys()):
         raw = raw_accounts[line_no]
-        # Пропускаем отключённые аккаунты
         if raw.get("enable") == "0":
             continue
-
         acc = find_or_create_account(db, raw)
         if acc:
             account_ids.append(acc.id)
-            # Первая активная линия = primary
             if primary_id is None:
                 primary_id = acc.id
             accounts_imported += 1
 
-    # 2. Импортируем custom_config и DSS
-    custom, dss = split_personal(parsed, global_settings)
+    rem = {
+        k: v
+        for k, v in parsed.items()
+        if not k.startswith(IMPORT_IGNORE_PREFIXES)
+        and not LINEKEY_RE.match(k)
+        and v != ""
+    }
+    custom, _ = _diff_remainder(rem, global_settings, model_settings, parsed)
+    dss = extract_dss_keys(parsed)
 
-    # 3. Создаём или обновляем телефон
     phone = db.query(Phone).filter(Phone.mac.ilike(mac)).first()
     created = phone is None
     if created:
@@ -279,7 +298,6 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
     phone.custom_config = custom
     phone.primary_account_id = primary_id
     set_account_ids(db, phone, account_ids)
-    # DSS → на primary SIP-аккаунт; телефон наследует (без override)
     dss_on_acc = apply_dss_to_account(db, primary_id, dss)
     if dss and not dss_on_acc:
         phone.custom_dss_keys = dss
@@ -287,28 +305,53 @@ def import_cfg_file(db: Session, filename: str, text: str) -> dict:
     else:
         phone.custom_dss_keys = None
         phone.override_dss_keys = False
-    resolved_model = resolve_model_name(db, None, filename, parsed)
+
+    resolved_model = resolve_model_name(db, model_name, filename, parsed)
     if resolved_model:
         phone.model_name = resolved_model
+
     ip = ip_from_filename(filename)
     if ip:
         phone.ip_address = ip
 
-    db.commit()
-    db.refresh(phone)
-
+    db.flush()
     logger.info(
         "Imported %s: mac=%s created=%s custom=%d dss=%d accounts=%d model=%s",
         filename, mac, created, len(custom), len(dss), accounts_imported, phone.model_name,
     )
     return {
-        "file": filename, "ok": True, "mac": mac,
+        "file": filename,
+        "ok": True,
+        "mac": mac,
         "created": created,
         "custom_keys": len(custom),
         "dss_keys": len(dss),
         "accounts": accounts_imported,
         "model": phone.model_name,
+        "ip": phone.ip_address,
     }
+
+
+def import_cfg_file(db: Session, filename: str, text: str) -> dict:
+    """Импорт одного cfg-файла. Одна транзакция: успех → commit, ошибка → rollback."""
+    mac = mac_from_filename(filename)
+    if not mac:
+        return {"file": filename, "ok": False, "error": "MAC не найден в имени файла"}
+
+    parsed = parse_yealink_cfg(text)
+    if not parsed:
+        return {"file": filename, "ok": False, "error": "Файл пустой или не распознан"}
+
+    try:
+        g = db.query(GlobalConfig).first()
+        global_settings = dict(g.settings or {}) if g else {}
+        result = import_one_phone(db, filename, mac, parsed, global_settings)
+        db.commit()
+        return result
+    except Exception as exc:
+        db.rollback()
+        logger.exception("import_cfg_file failed for %s", filename)
+        return {"file": filename, "ok": False, "error": str(exc)}
 
 
 def detect_model_from_filename(filename: str) -> str | None:
@@ -387,12 +430,15 @@ def resolve_model_name(
     return model
 
 def import_batch(db: Session, files: list, model_name: str | None, promote_common: bool) -> dict:
-    """Пакетный импорт с продвижением общих ключей в Global Config.
+    """Пакетный импорт cfg. Одна транзакция на весь батч (promote + все телефоны).
 
     files: список кортежей (filename, text)
+    При любой ошибке на этапе записи — rollback всего батча.
+    Ошибки разбора отдельных файлов (нет MAC / пустой cfg) попадают в report
+    и не откатывают остальные.
     """
-    report = []
-    parsed_all = []
+    report: list[dict] = []
+    parsed_all: list[tuple[str, str, dict]] = []
 
     for filename, text in files:
         mac = mac_from_filename(filename)
@@ -405,121 +451,100 @@ def import_batch(db: Session, files: list, model_name: str | None, promote_commo
             continue
         parsed_all.append((filename, mac, parsed))
 
-    # Настройки выбранной модели — для вычитания модельных ключей
-    model_settings = {}
+    if not parsed_all and not report:
+        return {
+            "status": "success",
+            "imported": 0,
+            "total": 0,
+            "report": [],
+            "promoted": [],
+            "conflicts": [],
+            "purged": [],
+        }
+
+    model_settings: dict = {}
     if model_name:
         m = db.query(PhoneModel).filter(PhoneModel.name == model_name).first()
         if m and m.default_config:
-            model_settings = m.default_config
+            model_settings = dict(m.default_config)
 
-    g = db.query(GlobalConfig).first()
-    if not g:
-        g = GlobalConfig(settings={})
-        db.add(g)
-        db.commit()
-    global_settings = dict(g.settings or {})
-    # Вычищаем из Global мусор от прошлых импортов (expansion_module, ringer, …)
-    global_settings, purged = purge_never_global_keys(global_settings)
-    if purged:
-        g.settings = global_settings
-        db.commit()
-        logger.info("Purged %d non-global keys from Global Config", len(purged))
+    promoted: list[str] = []
+    conflicts: list[str] = []
+    purged: list[str] = []
 
-    # Остаток каждого файла: без account.*, linekey.* и игнорируемых префиксов
-    remainders = []
-    for filename, mac, parsed in parsed_all:
-        rem = {
-            k: v for k, v in parsed.items()
-            if not k.startswith(IMPORT_IGNORE_PREFIXES)
-            and not LINEKEY_RE.match(k)
-            and v != ""                      # пустые значения информации не несут
-        }
-        remainders.append(rem)
+    try:
+        g = db.query(GlobalConfig).first()
+        if not g:
+            g = GlobalConfig(settings={})
+            db.add(g)
+            db.flush()
 
-    # 1. Продвижение общих ключей в Global Config (не device-UI ключи)
-    promoted, conflicts = [], []
-    if promote_common and remainders:
-        common = {
-            k: v for k, v in remainders[0].items()
-            if not is_never_global_key(k)
-            and all(r.get(k) == v for r in remainders)
-        }
-        for k, v in common.items():
-            if is_never_global_key(k):
-                continue
-            cur = global_settings.get(k)
-            if cur is None:
-                global_settings[k] = v
-                promoted.append(k)
-            elif str(cur) != str(v):
-                conflicts.append(f"{k}: global={cur}, файл={v} (оставлено персонально)")
-        if promoted or purged:
+        global_settings = dict(g.settings or {})
+        global_settings, purged = purge_never_global_keys(global_settings)
+
+        remainders = []
+        for _filename, _mac, parsed in parsed_all:
+            rem = {
+                k: v
+                for k, v in parsed.items()
+                if not k.startswith(IMPORT_IGNORE_PREFIXES)
+                and not LINEKEY_RE.match(k)
+                and v != ""
+            }
+            remainders.append(rem)
+
+        if promote_common and remainders:
+            common = {
+                k: v
+                for k, v in remainders[0].items()
+                if not is_never_global_key(k)
+                and all(r.get(k) == v for r in remainders)
+            }
+            for k, v in common.items():
+                cur = global_settings.get(k)
+                if cur is None:
+                    global_settings[k] = v
+                    promoted.append(k)
+                elif str(cur) != str(v):
+                    conflicts.append(f"{k}: global={cur}, файл={v} (оставлено персонально)")
+
+        if purged or promoted:
             g.settings = global_settings
-            db.commit()
+            db.flush()
+            if purged:
+                logger.info("Purged %d non-global keys from Global Config", len(purged))
             if promoted:
                 logger.info("Promoted %d common keys to Global Config: %s", len(promoted), promoted)
 
-    # 2. Персональный импорт каждого файла
-    for (filename, mac, parsed), rem in zip(parsed_all, remainders):
-        raw_accounts = parse_accounts(parsed)
-        account_ids, primary_id, accounts_imported = [], None, 0
-        for line_no in sorted(raw_accounts):
-            raw = raw_accounts[line_no]
-            if raw.get("enable") == "0":
-                continue
-            acc = find_or_create_account(db, raw)
-            if acc:
-                account_ids.append(acc.id)
-                if primary_id is None:
-                    primary_id = acc.id
-                accounts_imported += 1
-
-        # Дифференцируем остаток против global (уже с promoted) и model
-        custom, _ = _diff_remainder(rem, global_settings, model_settings, parsed)
-        # linekey.* исключены из rem — DSS всегда из полного parsed
-        dss = extract_dss_keys(parsed)
-
-        phone = db.query(Phone).filter(Phone.mac.ilike(mac)).first()
-        created = phone is None
-        if created:
-            phone = Phone(mac=mac, status="unregistered")
-            db.add(phone)
-            db.flush()
-
-        phone.custom_config = custom
-        phone.primary_account_id = primary_id
-        set_account_ids(db, phone, account_ids)
-        dss_on_acc = apply_dss_to_account(db, primary_id, dss)
-        if dss and not dss_on_acc:
-            phone.custom_dss_keys = dss
-            phone.override_dss_keys = True
-        else:
-            phone.custom_dss_keys = None
-            phone.override_dss_keys = False
-        resolved_model = resolve_model_name(db, model_name, filename, parsed)
-        if resolved_model:
-            phone.model_name = resolved_model
-        elif not phone.model_name:
-            phone.model_name = None
-        ip = ip_from_filename(filename)
-        if ip:
-            phone.ip_address = ip
+        for (filename, mac, parsed), _rem in zip(parsed_all, remainders):
+            row = import_one_phone(
+                db,
+                filename,
+                mac,
+                parsed,
+                global_settings,
+                model_settings=model_settings,
+                model_name=model_name,
+            )
+            report.append(row)
 
         db.commit()
-        db.refresh(phone)
-        report.append({
-            "file": filename, "ok": True, "mac": mac, "created": created,
-            "custom_keys": len(custom), "dss_keys": len(dss),
-            "accounts": accounts_imported,
-            "model": phone.model_name,
-            "ip": phone.ip_address,
-        })
+    except Exception:
+        db.rollback()
+        logger.exception("import_batch failed — transaction rolled back")
+        raise
 
     ok = sum(1 for r in report if r.get("ok"))
     return {
-        "status": "success", "imported": ok, "total": len(report),
-        "report": report, "promoted": promoted, "conflicts": conflicts, "purged": purged,
+        "status": "success",
+        "imported": ok,
+        "total": len(report),
+        "report": report,
+        "promoted": promoted,
+        "conflicts": conflicts,
+        "purged": purged,
     }
+
 
 def _diff_remainder(rem: dict, global_settings: dict, model_settings: dict, parsed: dict):
     """Оставляет в custom только то, чего нет ни в global, ни в model; linekey -> dss."""
