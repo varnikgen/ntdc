@@ -13,7 +13,7 @@ from app.config import settings
 from app.database import SessionLocal
 from app.models import AuditLog, Phone
 
-logger = logging.getLogger("ntdc.maintenance")
+logger = logging.getLogger("ncdc.maintenance")
 
 # Ограничение параллельных опросов веб-UI трубок
 _PROBE_CONCURRENCY = 10
@@ -22,12 +22,23 @@ _PROBE_CONCURRENCY = 10
 async def check_phone_availability(
     client: httpx.AsyncClient, phone_ip: str
 ) -> bool:
-    """HTTPS до веб-UI. 401/403 тоже «жив» — интерфейс отвечает, просто закрыт паролем."""
-    try:
-        response = await client.get(f"https://{phone_ip}/")
-        return response.status_code in (200, 401, 403)
-    except Exception:
+    """Веб-UI трубки доступен?
+
+    Yealink часто отвечает 302 на / (редирект на /servlet или логин).
+    401/403 — UI закрыт паролем, но хост жив.
+    """
+    if not phone_ip:
         return False
+    # Только HTTPS: у Yealink HTTP по умолчанию выключен
+    try:
+        response = await client.get(f"https://{phone_ip}/", follow_redirects=False)
+        code = response.status_code
+        # 2xx, 3xx (302!), auth challenge
+        if 200 <= code < 400 or code in (401, 403):
+            return True
+    except Exception:
+        pass
+    return False
 
 
 async def background_tasks():
