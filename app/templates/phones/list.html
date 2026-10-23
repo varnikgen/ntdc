@@ -117,7 +117,13 @@
                         data-search="{{ phone.mac }} {{ phone.model_name or '' }} {{ phone.ip_address or '' }} {{ phone.status }}">
                         <td class="fw-semibold font-monospace" data-sort-value="{{ phone.mac }}">{{ phone.mac }}</td>
                         <td data-sort-value="{{ phone.model_name or '' }}">{{ phone.model_name or '—' }}</td>
-                        <td class="font-monospace" data-sort-value="{{ phone.ip_address or '' }}">{{ phone.ip_address or '—' }}</td>
+                        <td class="font-monospace" data-sort-value="{{ phone.ip_address or '' }}">
+                            {% if phone.ip_address %}
+                            <a href="https://{{ phone.ip_address }}/" target="_blank" rel="noopener noreferrer" class="text-decoration-none" title="Веб-интерфейс телефона">{{ phone.ip_address }}</a>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
                         <td data-sort-value="{{ phone.status }}">
                             {% if phone.status == 'online' %}
                                 <span class="badge badge-status-online">Online</span>
